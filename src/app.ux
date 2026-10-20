@@ -1,0 +1,10 @@
+<script>
+export default {
+  onCreate() {
+    console.info('Рыбалка: запуск')
+  },
+  onDestroy() {
+    console.info('Рыбалка: выход')
+  }
+}
+</script>

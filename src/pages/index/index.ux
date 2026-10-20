@@ -1,0 +1,452 @@
+<template>
+  <div class="page">
+    <stack class="stage">
+
+      <!-- Слой 1: картинка игры -->
+      <div class="scene">
+
+        <div class="hud">
+          <text class="hud-score">Очки {{score}}</text>
+          <div class="dot-on" if="{{crownSeen}}"></div>
+          <div class="dot-off" if="{{!crownSeen}}"></div>
+        </div>
+
+        <!-- Готов к забросу -->
+        <div class="col" if="{{state === 'idle'}}">
+          <text class="title">РЫБАЛКА</text>
+          <text class="sub">Дальность заброса</text>
+          <div class="bar">
+            <div class="bar-fill" style="width: {{powerPx}}px;"></div>
+          </div>
+          <text class="big">{{powerText}}</text>
+          <text class="hint">Коронка — дальность</text>
+          <text class="hint">Тап — забросить</text>
+          <text class="stat" if="{{bestText}}">Рекорд: {{bestText}}</text>
+        </div>
+
+        <!-- Заброс / ожидание / поклёвка -->
+        <div class="col" if="{{state === 'casting' || state === 'wait' || state === 'bite'}}">
+          <text class="title" if="{{state !== 'bite'}}">Ждём...</text>
+          <text class="alert" if="{{state === 'bite'}}">ПОКЛЁВКА!</text>
+          <div class="pond">
+            <div class="bobber" style="margin-top: {{bobY}}px;"></div>
+          </div>
+          <text class="hint" if="{{state === 'wait'}}">Не спеши: рано дёрнешь — рыба уйдёт</text>
+          <text class="hint" if="{{state === 'casting'}}">Заброс...</text>
+          <text class="hint-hot" if="{{state === 'bite'}}">Подсекай: тап или крутни коронку</text>
+        </div>
+
+        <!-- Вываживание -->
+        <div class="col" if="{{state === 'fight'}}">
+          <text class="sub">Держи рыбу в зоне!</text>
+          <div class="fight-row">
+            <stack class="track">
+              <div class="zone" style="margin-top: {{zoneY}}px; height: {{zoneH}}px;"></div>
+              <div class="fish" style="margin-top: {{fishY}}px;"></div>
+            </stack>
+            <div class="meter">
+              <div class="meter-fill" style="height: {{progressPx}}px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Итог -->
+        <div class="col" if="{{state === 'result'}}">
+          <text class="title-win" if="{{won}}">Поймал!</text>
+          <text class="title-lose" if="{{!won}}">Не повезло</text>
+          <text class="big">{{resTitle}}</text>
+          <text class="sub">{{resLine}}</text>
+          <text class="stat" if="{{won}}">+{{gain}} очков</text>
+          <text class="stat">Поймано: {{caught}}   Упущено: {{lost}}</text>
+          <text class="hint">Тап — продолжить</text>
+        </div>
+      </div>
+
+      <!-- Слой 2: прозрачный скролл. Он ловит вращение коронки
+           (системa прокручивает его, как любой список) и тапы. -->
+      <scroll id="crown" class="crown" scroll-y="true" onscroll="onCrown">
+        <div class="crown-body" onclick="onTap" ontouchstart="onTouch" ontouchmove="onTouch"></div>
+      </scroll>
+
+    </stack>
+  </div>
+</template>
+
+<style>
+  .page {
+    width: 100%;
+    height: 100%;
+    background-color: #0b3550;
+  }
+  .stage {
+    width: 100%;
+    height: 100%;
+  }
+  .scene {
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+    background-color: #0b3550;
+  }
+  .crown {
+    width: 100%;
+    height: 100%;
+  }
+  .crown-body {
+    width: 100%;
+    height: 6000px;
+  }
+
+  .hud {
+    margin-top: 44px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+  }
+  .hud-score {
+    font-size: 26px;
+    color: #9ad1f0;
+  }
+  .dot-on {
+    width: 12px;
+    height: 12px;
+    margin-left: 12px;
+    border-radius: 6px;
+    background-color: #2ecc71;
+  }
+  .dot-off {
+    width: 12px;
+    height: 12px;
+    margin-left: 12px;
+    border-radius: 6px;
+    background-color: #44607a;
+  }
+
+  .col {
+    width: 100%;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 10px;
+  }
+  .title {
+    font-size: 44px;
+    color: #ffffff;
+    margin-top: 10px;
+  }
+  .title-win {
+    font-size: 40px;
+    color: #2ecc71;
+    margin-top: 10px;
+  }
+  .title-lose {
+    font-size: 40px;
+    color: #e67e5a;
+    margin-top: 10px;
+  }
+  .alert {
+    font-size: 48px;
+    color: #ff5a4f;
+    margin-top: 10px;
+  }
+  .sub {
+    font-size: 26px;
+    color: #cfe8f7;
+    margin-top: 8px;
+    text-align: center;
+  }
+  .big {
+    font-size: 38px;
+    color: #ffffff;
+    margin-top: 10px;
+    text-align: center;
+  }
+  .stat {
+    font-size: 24px;
+    color: #ffd166;
+    margin-top: 10px;
+    text-align: center;
+  }
+  .hint {
+    font-size: 22px;
+    color: #7fa8c4;
+    margin-top: 8px;
+    text-align: center;
+  }
+  .hint-hot {
+    font-size: 24px;
+    color: #ffd166;
+    margin-top: 8px;
+    text-align: center;
+  }
+
+  .bar {
+    width: 280px;
+    height: 24px;
+    margin-top: 14px;
+    border-radius: 12px;
+    background-color: #082338;
+  }
+  .bar-fill {
+    height: 24px;
+    border-radius: 12px;
+    background-color: #29b6f6;
+  }
+
+  .pond {
+    width: 300px;
+    height: 170px;
+    margin-top: 12px;
+    border-radius: 24px;
+    background-color: #14649a;
+    justify-content: center;
+  }
+  .bobber {
+    width: 30px;
+    height: 30px;
+    border-radius: 15px;
+    background-color: #ff5a4f;
+  }
+
+  .fight-row {
+    margin-top: 12px;
+    align-items: flex-start;
+    justify-content: center;
+  }
+  .track {
+    width: 130px;
+    height: 300px;
+    border-radius: 14px;
+    background-color: #082338;
+  }
+  .zone {
+    width: 130px;
+    border-radius: 14px;
+    background-color: #2e9e68;
+  }
+  .fish {
+    width: 64px;
+    height: 34px;
+    margin-left: 33px;
+    border-radius: 17px;
+    background-color: #ff9f43;
+  }
+  .meter {
+    width: 30px;
+    height: 300px;
+    margin-left: 26px;
+    border-radius: 15px;
+    background-color: #082338;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+  .meter-fill {
+    width: 30px;
+    border-radius: 15px;
+    background-color: #ffd166;
+  }
+</style>
+
+<script>
+import vibrator from '@system.vibrator'
+import storage from '@system.storage'
+import game from '../../common/game.js'
+
+// Чувствительность коронки: сколько "прокрутки" скролла = 1 единица ввода.
+// Если коронка слишком быстрая или медленная — меняй это число.
+const CROWN_SENSITIVITY = 1
+// Когда прокрутка уходит дальше этого от центра, возвращаем её в центр.
+const CENTER = 3000
+const RECENTER_AT = 1800
+const TICK_MS = 40
+
+export default {
+  private: {
+    state: 'idle',
+    score: 0,
+    caught: 0,
+    lost: 0,
+    won: false,
+    gain: 0,
+    powerPx: 140,
+    powerText: 'Средне',
+    bestText: '',
+    bobY: 40,
+    zoneY: 0,
+    zoneH: 120,
+    fishY: 0,
+    progressPx: 90,
+    resTitle: '',
+    resLine: '',
+    crownSeen: false
+  },
+
+  onInit() {
+    this.g = game.create()
+    this.timer = null
+    this.lastY = CENTER
+    this.recentering = false
+    this.tick = 0
+    this.lastTouchTick = -1000
+    this.freeScrolls = 0
+    this.loadSave()
+  },
+
+  onShow() {
+    this.recenter()
+    if (this.timer === null) {
+      this.timer = setInterval(() => this.loop(), TICK_MS)
+    }
+  },
+
+  onHide() {
+    this.stopLoop()
+  },
+
+  onDestroy() {
+    this.stopLoop()
+  },
+
+  stopLoop() {
+    if (this.timer !== null) {
+      clearInterval(this.timer)
+      this.timer = null
+    }
+  },
+
+  // ---------- ввод ----------
+
+  onCrown(e) {
+    const y = e.scrollY
+    if (this.recentering) {
+      this.recentering = false
+      this.lastY = y
+      return
+    }
+    const d = (y - this.lastY) * CROWN_SENSITIVITY
+    this.lastY = y
+
+    // Скролл без недавнего касания — значит это крутили коронку
+    if (this.tick - this.lastTouchTick > 25) {
+      this.freeScrolls += 1
+      if (this.freeScrolls >= 3 && !this.crownSeen) this.crownSeen = true
+    }
+
+    if (d !== 0) game.crown(this.g, d)
+    if (Math.abs(y - CENTER) > RECENTER_AT) this.recenter()
+  },
+
+  onTouch() {
+    this.lastTouchTick = this.tick
+  },
+
+  onTap() {
+    game.tap(this.g)
+    this.sync()
+  },
+
+  recenter() {
+    const el = this.$element('crown')
+    if (!el) return
+    this.recentering = true
+    this.lastY = CENTER
+    el.scrollTo({ top: CENTER, left: 0, behavior: 'instant' })
+  },
+
+  // ---------- игровой цикл ----------
+
+  loop() {
+    this.tick += 1
+    game.step(this.g, TICK_MS / 1000)
+    this.sync()
+  },
+
+  sync() {
+    const g = this.g
+
+    while (g.events.length) {
+      const ev = g.events.shift()
+      if (ev === 'bite') vibrator.vibrate({ mode: 'long' })
+      else if (ev === 'hook' || ev === 'lose') vibrator.vibrate({ mode: 'short' })
+      else if (ev === 'win') vibrator.vibrate({ mode: 'long' })
+    }
+
+    if (this.state !== g.state) this.state = g.state
+    if (this.score !== g.score) this.score = g.score
+    if (this.caught !== g.caught) this.caught = g.caught
+    if (this.lost !== g.lost) this.lost = g.lost
+
+    if (g.state === 'idle') {
+      const px = Math.round(g.power * 2.8)
+      if (this.powerPx !== px) this.powerPx = px
+      const t = game.powerLabel(g.power)
+      if (this.powerText !== t) this.powerText = t
+    }
+
+    if (g.state === 'casting' || g.state === 'wait' || g.state === 'bite') {
+      const b = Math.round(g.bobY)
+      if (this.bobY !== b) this.bobY = b
+    }
+
+    if (g.state === 'fight') {
+      const z = Math.round(g.zoneY)
+      const f = Math.round(g.fishY)
+      const p = Math.round(g.progress * 3)
+      if (this.zoneY !== z) this.zoneY = z
+      if (this.zoneH !== g.zoneH) this.zoneH = g.zoneH
+      if (this.fishY !== f) this.fishY = f
+      if (this.progressPx !== p) this.progressPx = p
+    }
+
+    if (g.state === 'result') {
+      if (this.won !== g.won) this.won = g.won
+      if (this.gain !== g.gain) this.gain = g.gain
+      if (this.resTitle !== g.title) this.resTitle = g.title
+      if (this.resLine !== g.line) this.resLine = g.line
+    }
+
+    const best = g.best > 0 ? g.bestName + ' ' + g.best + ' кг' : ''
+    if (this.bestText !== best) this.bestText = best
+
+    if (g.dirty) {
+      g.dirty = false
+      this.save()
+    }
+  },
+
+  // ---------- сохранение ----------
+
+  save() {
+    const g = this.g
+    storage.set({
+      key: 'fishing_save',
+      value: JSON.stringify({
+        score: g.score, best: g.best, bestName: g.bestName,
+        caught: g.caught, lost: g.lost
+      })
+    })
+  },
+
+  loadSave() {
+    storage.get({
+      key: 'fishing_save',
+      default: '',
+      success: (data) => {
+        if (!data) return
+        try {
+          const s = JSON.parse(data)
+          const g = this.g
+          g.score = s.score || 0
+          g.best = s.best || 0
+          g.bestName = s.bestName || ''
+          g.caught = s.caught || 0
+          g.lost = s.lost || 0
+          this.sync()
+        } catch (err) {
+          console.warn('save parse failed')
+        }
+      }
+    })
+  }
+}
+</script>

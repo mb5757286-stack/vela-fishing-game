@@ -1,10 +1,12 @@
 {
   "name": "fishing",
   "version": "1.0.0",
+  "description": "Рыбалка для Redmi Watch 5 (Xiaomi Vela JS), управление коронкой",
   "scripts": {
     "start": "aiot start",
     "build": "aiot build",
-    "release": "aiot release"
+    "release": "aiot release",
+    "test": "node test/sim.js"
   },
   "devDependencies": {
     "aiot-toolkit": "latest"
