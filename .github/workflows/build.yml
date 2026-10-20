@@ -19,7 +19,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          
+
+      - name: Проверка логики игры
+        run: node test/sim.js
+
       - name: Установка зависимостей
         run: npm install
 
@@ -28,16 +31,26 @@ jobs:
 
       - name: Найти .rpk
         run: |
-          ls -la dist
-          test -n "$(ls dist/*.rpk 2>/dev/null)"
+          echo "--- корень проекта ---"
+          ls -la
+          echo "--- все .rpk в проекте ---"
+          find . -name '*.rpk' -not -path './node_modules/*' || true
+          mkdir -p out
+          find . -name '*.rpk' -not -path './node_modules/*' -not -path './out/*' -exec cp {} out/ \;
+          ls -la out
+          if [ -z "$(ls out/*.rpk 2>/dev/null)" ]; then
+            echo "!!! .rpk не найден, справка сборщика:"
+            npx aiot build -h || true
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
           name: fishing-rpk
-          path: dist/*.rpk
+          path: out/*.rpk
 
       - name: Релиз по тегу
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.rpk
+          files: out/*.rpk
