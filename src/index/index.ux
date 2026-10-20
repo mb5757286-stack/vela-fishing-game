@@ -250,7 +250,7 @@
 <script>
 import vibrator from '@system.vibrator'
 import storage from '@system.storage'
-import game from '../../common/game.js'
+import game from '../common/game.js'
 
 // Чувствительность коронки: сколько "прокрутки" скролла = 1 единица ввода.
 // Если коронка слишком быстрая или медленная — меняй это число.
