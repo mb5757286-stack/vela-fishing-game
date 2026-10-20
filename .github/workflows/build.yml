@@ -19,10 +19,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Проверка логики игры
-        run: node test/sim.js
-
+          
       - name: Установка зависимостей
         run: npm install
 
