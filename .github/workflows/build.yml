@@ -24,7 +24,12 @@ jobs:
         run: npm install
 
       - name: Сборка .rpk
-        run: npx aiot build
+        run: |
+          set +e
+          node -v
+          npx aiot build 2>&1 | tee build.log
+          echo "exit-code: ${PIPESTATUS[0]}" | tee -a build.log
+          exit 0
 
       - name: Найти .rpk
         run: |
@@ -51,3 +56,33 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: out/*.rpk
+
+  # Диагностика: сохраняем лог сборки в ветку ci-log, чтобы его можно было прочитать
+  log:
+    needs: build
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Повторная сборка с логом
+        run: |
+          set +e
+          npm install > npm.log 2>&1
+          {
+            echo "== node =="; node -v
+            echo "== npm ls =="; npm ls --depth=0 2>&1 | head -20
+            echo "== aiot version =="; npx aiot --version 2>&1 | head -5
+            echo "== build =="; npx aiot build 2>&1 | tail -150
+            echo "== файлы =="; find . -path ./node_modules -prune -o -path ./.git -prune -o -type f -print | head -80
+            echo "== build/ dist/ =="; ls -laR build dist 2>&1 | head -60
+          } > ci.txt 2>&1
+          git config user.name github-actions
+          git config user.email actions@github.com
+          git checkout --orphan ci-log
+          git rm -rf --cached . -q
+          git add -f ci.txt
+          git commit -q -m "ci log"
+          git push -f origin ci-log
