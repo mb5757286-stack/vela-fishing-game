@@ -516,6 +516,7 @@ export default {
   // Датчик недоступен (официально — не на всех часах): выключаем управление движением
   sensorFailed() {
     this.sensorOn = false
+    this.sensorBad = true
     this.save.settings.motion = false
     this.msg = 'Датчик движения недоступен на этих часах'
     this.flashMsg()
@@ -647,6 +648,10 @@ export default {
 
   toggleSetting(id) {
     const s = this.save.settings
+    if (id === 'motion' && this.sensorBad) {
+      this.msg = 'Датчик недоступен на этих часах'
+      return
+    }
     if (id === 'sens') {
       s.sens = (s.sens + 1) % game.SENS.length
     } else if (id === 'musicVol') {
@@ -679,7 +684,7 @@ export default {
     if (this.screen === 'settings') {
       const s = this.save.settings
       return [
-        { cat: 'set', id: 'motion', label: 'Датчики движения: ' + onOff(s.motion) },
+        { cat: 'set', id: 'motion', label: 'Датчики движения: ' + (this.sensorBad ? 'недоступны' : onOff(s.motion)) },
         { cat: 'set', id: 'castFlick', label: 'Заброс взмахом: ' + onOff(s.castFlick) },
         { cat: 'set', id: 'hookFlick', label: 'Подсечка рывком: ' + onOff(s.hookFlick) },
         { cat: 'set', id: 'tilt', label: 'Балансир (наклон): ' + onOff(s.tilt) },
@@ -734,6 +739,15 @@ export default {
       rows.push({ text: text, cls: 'row' + (i === this.cursor ? ' row-sel' : '') })
     }
     this.rows = rows
+    const cur = list[this.cursor]
+    if (cur) this.menuHint = this.actionHint(cur) + '   ·   коронка — выбор'
+  },
+
+  // Что сделает тап по выделенной строке
+  actionHint(it) {
+    if (it.cat === 'set') return 'Тап — переключить'
+    if (it.cat === 'loc') return it.owned ? 'Тап — перейти' : 'Тап — купить за ' + it.price
+    return it.owned ? (it.equipped ? 'Уже надето' : 'Тап — надеть') : 'Тап — купить за ' + it.price
   },
 
   applyBg() {
