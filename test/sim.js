@@ -197,7 +197,7 @@ console.log('\n--- Редкие рыбы, серия, коллекция ---')
   assert(sv.stats.streak === 4, 'серия растёт после поимки')
   assert(sv.stats.seen.indexOf('bleak') >= 0, 'вид попадает в коллекцию')
   const m = G.mergeSave({ settings: { musicVol: 33, sfx: 'нет', vib: false } })
-  assert.strictEqual(m.settings.musicVol, 50, 'громкость только из набора 0/25/50/75/100')
+  assert.strictEqual(m.settings.musicVol, 25, 'громкость без допустимого значения сбрасывается на 25')
   assert.strictEqual(m.settings.vib, false)
   assert.strictEqual(m.settings.sfx, true)
 }

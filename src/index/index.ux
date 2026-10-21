@@ -80,6 +80,13 @@
         <div class="crown-body" onclick="onTap" ontouchstart="onTouch"></div>
       </scroll>
 
+      <!-- Кнопки переключения экранов (не зависят от свайпа) -->
+      <div class="nav">
+        <div class="nav-btn" onclick="navPrev"><text class="nav-txt">‹</text></div>
+        <text class="nav-name">{{navName}}</text>
+        <div class="nav-btn" onclick="navNext"><text class="nav-txt">›</text></div>
+      </div>
+
     </stack>
   </div>
 </template>
@@ -299,6 +306,34 @@
     font-size: 20px;
     color: #ffffff;
   }
+  .nav {
+    position: absolute;
+    bottom: 0px;
+    left: 0px;
+    width: 100%;
+    height: 56px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding-left: 30px;
+    padding-right: 30px;
+  }
+  .nav-btn {
+    width: 60px;
+    height: 46px;
+    border-radius: 23px;
+    background-color: rgba(18, 58, 85, 0.9);
+    justify-content: center;
+    align-items: center;
+  }
+  .nav-txt {
+    font-size: 30px;
+    color: #ffffff;
+  }
+  .nav-name {
+    font-size: 18px;
+    color: #cfe8f7;
+  }
   .msg {
     font-size: 20px;
     color: #ffd166;
@@ -347,6 +382,7 @@ export default {
     coinsText: '',
     menuSub: '',
     locName: '',
+    navName: 'РЫБАЛКА',
     streakText: '',
     bgSrc: '',
     powerPx: 140,
@@ -457,7 +493,7 @@ export default {
       audio.onended = null
       audio.loop = false
       audio.src = SFX[name]
-      audio.volume = Math.min(1, this.musicVolume() + 0.4)
+      audio.volume = Math.min(0.6, 0.3 + this.musicVolume() * 0.3)
       audio.onended = () => {
         audio.onended = null
         this.resumeMusic(resumeAt)
@@ -608,8 +644,24 @@ export default {
     this.sync()
   },
 
+  // Кнопки ‹ › внизу: переход между экранами по нажатию
+  navPrev() { this.navTo(-1) },
+  navNext() { this.navTo(1) },
+
+  navTo(dir) {
+    if (this.screen === 'fish' && this.g.state !== 'idle' && this.g.state !== 'result') {
+      this.msg = 'Сначала доиграйте рыбалку'
+      this.flashMsg()
+      return
+    }
+    const i = SCREENS.indexOf(this.screen)
+    this.setScreen(SCREENS[(i + dir + SCREENS.length) % SCREENS.length])
+  },
+
   setScreen(s) {
     this.screen = s
+    const names = { fish: 'РЫБАЛКА', shop: 'МАГАЗИН', map: 'МЕСТА', settings: 'НАСТРОЙКИ' }
+    this.navName = names[s]
     this.cursor = 0
     this.acc = 0
     this.msg = ''

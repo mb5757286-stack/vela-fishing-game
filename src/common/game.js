@@ -70,7 +70,7 @@ function defaultSave() {
     owned: { rod: ['bamboo'], reel: ['simple'], bait: ['worm'], loc: ['pond'] },
     eq: { rod: 'bamboo', reel: 'simple', bait: 'worm', loc: 'pond' },
     stats: { caught: 0, lost: 0, earned: 0, bestId: '', bestKg: 0, streak: 0, seen: [] },
-    settings: { motion: true, castFlick: true, hookFlick: true, tilt: true, sens: 1, musicVol: 50, sfx: true, vib: true }
+    settings: { motion: true, castFlick: true, hookFlick: true, tilt: true, sens: 1, musicVol: 25, sfx: true, vib: true }
   }
 }
 
