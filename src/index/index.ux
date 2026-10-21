@@ -588,7 +588,9 @@ export default {
   // ---------- ввод ----------
 
   onCrown(e) {
-    const y = e.scrollY
+    // Защита: если часы присылают прокрутку в другом поле, не даём NaN сломать меню
+    let y = e && typeof e.scrollY === 'number' ? e.scrollY : (e && e.scrollTop)
+    if (typeof y !== 'number' || isNaN(y)) return
     if (this.recentering) {
       this.recentering = false
       this.lastY = y
@@ -674,6 +676,7 @@ export default {
   },
 
   moveCursor(d) {
+    if (!isFinite(d)) return
     this.acc += d
     const steps = Math.trunc(this.acc / MENU_STEP)
     if (steps === 0) return
@@ -684,6 +687,7 @@ export default {
 
   // Тап в меню: купить / надеть вещь, выбрать место или переключить настройку
   activate() {
+    if (!(this.cursor >= 0)) this.cursor = 0
     const list = this.menuList()
     const it = list[this.cursor]
     if (!it) return
