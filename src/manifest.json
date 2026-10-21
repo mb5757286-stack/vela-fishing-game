@@ -8,7 +8,8 @@
   "deviceTypeList": ["watch"],
   "features": [
     { "name": "system.vibrator" },
-    { "name": "system.storage" }
+    { "name": "system.storage" },
+    { "name": "system.sensor" }
   ],
   "config": {
     "logLevel": "log",

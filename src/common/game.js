@@ -64,7 +64,8 @@ function defaultSave() {
     coins: 0,
     owned: { rod: ['bamboo'], reel: ['simple'], bait: ['worm'], loc: ['pond'] },
     eq: { rod: 'bamboo', reel: 'simple', bait: 'worm', loc: 'pond' },
-    stats: { caught: 0, lost: 0, earned: 0, bestId: '', bestKg: 0 }
+    stats: { caught: 0, lost: 0, earned: 0, bestId: '', bestKg: 0 },
+    settings: { motion: true, castFlick: true, hookFlick: true, tilt: true, sens: 1 }
   }
 }
 
@@ -90,6 +91,14 @@ function mergeSave(s) {
     if (typeof st.lost === 'number') d.stats.lost = st.lost
     if (typeof st.earned === 'number') d.stats.earned = st.earned
     if (typeof st.bestKg === 'number') { d.stats.bestKg = st.bestKg; d.stats.bestId = FISH[st.bestId] ? st.bestId : '' }
+  }
+  var ds = d.settings
+  if (s.settings && typeof s.settings === 'object') {
+    var keys = ['motion', 'castFlick', 'hookFlick', 'tilt']
+    for (var k = 0; k < keys.length; k++) {
+      if (typeof s.settings[keys[k]] === 'boolean') ds[keys[k]] = s.settings[keys[k]]
+    }
+    if (s.settings.sens === 0 || s.settings.sens === 1 || s.settings.sens === 2) ds.sens = s.settings.sens
   }
   return d
 }
@@ -335,6 +344,40 @@ function powerLabel(power) {
   return 'Далеко'
 }
 
+// Чувствительность коронки и наклона
+var SENS = [0.6, 1, 1.6]
+var SENS_NAMES = ['низкая', 'средняя', 'высокая']
+
+var FLICK = 9          // резкий рывок: изменение ускорения между замерами, м/с²
+var FLICK_GAP = 0.8    // сек между двумя рывками
+var TILT_DEAD = 1.0    // м/с², мёртвая зона наклона
+var TILT_SPEED = 260   // px в секунду при полном наклоне
+
+function motionNew() { return { px: 0, py: 0, pz: 0, first: true, lastFlick: -10 } }
+
+// Один замер акселерометра: рывок (заброс/подсечка) и наклон -1..1 (балансир)
+function motionFeed(m, x, y, z, t) {
+  var out = { flick: false, tilt: 0 }
+  if (!m.first) {
+    var jerk = Math.abs(x - m.px) + Math.abs(y - m.py) + Math.abs(z - m.pz)
+    if (jerk > FLICK && t - m.lastFlick > FLICK_GAP) {
+      out.flick = true
+      m.lastFlick = t
+    }
+  }
+  m.first = false
+  m.px = x; m.py = y; m.pz = z
+  var v = Math.abs(x) > TILT_DEAD ? x : 0
+  out.tilt = clamp(v / 9.8, -1, 1)
+  return out
+}
+
+// Балансир: в бою наклон двигает зелёную зону
+function tilt(g, v, dt) {
+  if (g.state !== 'fight') return
+  g.zoneY = clamp(g.zoneY + v * TILT_SPEED * dt, 0, TRACK - g.zoneH)
+}
+
 export default {
   FISH: FISH,
   LOCATIONS: LOCATIONS,
@@ -353,5 +396,10 @@ export default {
   crown: crown,
   longpress: longpress,
   step: step,
-  powerLabel: powerLabel
+  powerLabel: powerLabel,
+  SENS: SENS,
+  SENS_NAMES: SENS_NAMES,
+  motionNew: motionNew,
+  motionFeed: motionFeed,
+  tilt: tilt
 }

@@ -147,4 +147,34 @@ G.tap(g); while (g.state !== 'bite') G.step(g, DT)
 G.tap(g); while (g.state === 'fight') { G.step(g, DT); if (g.state === 'fight') G.longpress(g) }
 assert(g.state === 'result', 'долгое нажатие в бою завершает рыбалку')
 
+console.log('\n--- Датчики и балансир ---')
+{
+  const m = G.motionNew()
+  let flicks = 0
+  for (let i = 0; i < 50; i++) if (G.motionFeed(m, 0, 0, 9.8, i * 0.02).flick) flicks++
+  assert.strictEqual(flicks, 0, 'ровно лежащие часы не дают рывков')
+  const m2 = G.motionNew()
+  G.motionFeed(m2, 0, 0, 9.8, 0)
+  assert.strictEqual(G.motionFeed(m2, 0, 0, 21.8, 0.02).flick, true, 'резкий рывок распознаётся')
+  assert.strictEqual(G.motionFeed(m2, 0, 0, 9.8, 0.04).flick, false, 'один рывок не считается дважды')
+  let f2 = 0
+  for (let i = 0; i < 10; i++) if (G.motionFeed(m2, 0, 0, 9.8 + (i % 2) * 12, 1 + i * 0.05).flick) f2++
+  assert(f2 <= 1, 'частые рывки за 0.8 с учитываются один раз, а не ' + f2)
+  assert.strictEqual(G.motionFeed(G.motionNew(), 0.5, 0, 9.8, 0).tilt, 0, 'наклон в мёртвой зоне — 0')
+  const tl = G.motionFeed(G.motionNew(), 5, 0, 9.8, 0).tilt
+  assert(tl > 0.4 && tl <= 1, 'наклон даёт ход зоны: ' + tl)
+  const gt = G.create(mulberry(9), freshSave()); gt.state = 'fight'; gt.zoneH = 120; gt.zoneY = 100
+  G.tilt(gt, 1, 0.1)
+  assert(gt.zoneY > 100, 'наклон двигает зону в бою')
+  G.tilt(gt, 1, 10)
+  assert(gt.zoneY <= G.TRACK - 120, 'зона не выходит за поле')
+  const gi = G.create(mulberry(9), freshSave()); G.tilt(gi, 1, 1)
+  assert.strictEqual(gi.zoneY, 0, 'вне боя наклон ничего не делает')
+  const sd = G.mergeSave({ settings: { motion: false, sens: 2, tilt: 'да' } })
+  assert.strictEqual(sd.settings.motion, false)
+  assert.strictEqual(sd.settings.sens, 2)
+  assert.strictEqual(sd.settings.tilt, true, 'мусор в настройках заменяется дефолтом')
+}
+console.log('рывки, мёртвая зона, балансир, настройки — ок')
+
 console.log('\nВсе проверки пройдены')

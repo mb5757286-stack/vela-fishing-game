@@ -5,7 +5,7 @@
       <!-- Фон локации -->
       <image class="bg" src="{{bgSrc}}"></image>
 
-      <!-- ===== Экран 1: ловля ===== -->
+      <!-- ===== Экран ловли ===== -->
       <div class="scene" if="{{screen === 'fish'}}">
         <div class="hud">
           <text class="hud-coins">{{coinsText}}</text>
@@ -19,8 +19,8 @@
             <div class="bar-fill" style="width: {{powerPx}}px;"></div>
           </div>
           <text class="hint">Коронка — дальность</text>
-          <text class="hint">Тап — забросить</text>
-          <text class="hint">Свайп влево/вправо — меню</text>
+          <text class="hint">Тап{{castHint}} — забросить</text>
+          <text class="hint">Свайп ← → — меню</text>
           <text class="stat" if="{{bestText}}">Рекорд: {{bestText}}</text>
         </div>
 
@@ -31,12 +31,12 @@
             <div class="bobber" style="margin-top: {{bobY}}px;"></div>
           </div>
           <text class="hint" if="{{state === 'wait'}}">Не спеши</text>
-          <text class="hint-hot" if="{{state === 'bite'}}">Тап или крути коронку</text>
+          <text class="hint-hot" if="{{state === 'bite'}}">Тап{{hookHint}} — подсечь</text>
         </div>
 
         <div class="col" if="{{state === 'fight'}}">
           <text class="sub">Держи рыбу в зоне</text>
-          <text class="hint">Долгое нажатие — отпустить</text>
+          <text class="hint">{{fightHint}}</text>
           <div class="fight-row">
             <stack class="track">
               <div class="zone" style="margin-top: {{zoneY}}px; height: {{zoneH}}px;"></div>
@@ -59,9 +59,9 @@
         </div>
       </div>
 
-      <!-- ===== Экран 2: магазин ===== -->
-      <div class="menu" if="{{screen === 'shop'}}">
-        <text class="menu-title">МАГАЗИН</text>
+      <!-- ===== Меню: магазин, места, настройки ===== -->
+      <div class="menu" if="{{screen !== 'fish'}}">
+        <text class="menu-title">{{menuTitle}}</text>
         <text class="menu-sub">{{coinsText}}</text>
         <div class="list">
           <div for="{{rows}}" class="{{$item.cls}}">
@@ -69,23 +69,10 @@
           </div>
         </div>
         <text class="msg">{{msg}}</text>
-        <text class="hint">Коронка — выбор, тап — купить или надеть</text>
+        <text class="hint">{{menuHint}}</text>
       </div>
 
-      <!-- ===== Экран 3: места ===== -->
-      <div class="menu" if="{{screen === 'map'}}">
-        <text class="menu-title">МЕСТА</text>
-        <text class="menu-sub">{{coinsText}}</text>
-        <div class="list">
-          <div for="{{rows}}" class="{{$item.cls}}">
-            <text class="row-text">{{$item.text}}</text>
-          </div>
-        </div>
-        <text class="msg">{{msg}}</text>
-        <text class="hint">Коронка — выбор, тап — купить или перейти</text>
-      </div>
-
-      <!-- Прозрачный слой: ловит коронку, свайпы, тапы и долгое нажатие -->
+      <!-- Прозрачный слой: коронка, свайпы, тапы, долгое нажатие -->
       <scroll id="crown" class="crown" scroll-y="true"
               onscroll="onCrown" onswipe="onSwipe" onlongpress="onLong">
         <div class="crown-body" onclick="onTap" ontouchstart="onTouch"></div>
@@ -284,7 +271,7 @@
     margin-top: 10px;
   }
   .row {
-    width: 330px;
+    width: 340px;
     height: 40px;
     margin-top: 4px;
     padding-left: 12px;
@@ -296,7 +283,7 @@
     background-color: #2b8fc4;
   }
   .row-text {
-    font-size: 21px;
+    font-size: 20px;
     color: #ffffff;
   }
   .msg {
@@ -310,17 +297,18 @@
 <script>
 import vibrator from '@system.vibrator'
 import storage from '@system.storage'
+import sensor from '@system.sensor'
 import game from '../common/game.js'
 
 const SAVE_KEY = 'fishing_v2'
-const CROWN_SENSITIVITY = 1     // общая чувствительность коронки
 const MENU_STEP = 30            // сколько прокрутки на одну строку меню
 const CENTER = 3000
 const RECENTER_AT = 1800
 const TICK_MS = 40
-const SCREENS = ['fish', 'shop', 'map']
+const SCREENS = ['fish', 'shop', 'map', 'settings']
 
 function clamp(v, a, b) { return v < a ? a : (v > b ? b : v) }
+function onOff(v) { return v ? 'вкл' : 'выкл' }
 
 export default {
   private: {
@@ -343,9 +331,13 @@ export default {
     won: false,
     gain: 0,
     bestText: '',
+    castHint: '',
+    hookHint: '',
+    fightHint: 'Долгое нажатие — отпустить',
     rows: [],
     msg: '',
-    crownSeen: false
+    menuTitle: '',
+    menuHint: ''
   },
 
   onInit() {
@@ -360,6 +352,8 @@ export default {
     this.cursor = 0
     this.acc = 0
     this.msgTimer = null
+    this.sensorOn = false
+    this.motion = game.motionNew()
     this.loadSave()
   },
 
@@ -368,16 +362,87 @@ export default {
     if (this.timer === null) {
       this.timer = setInterval(() => this.loop(), TICK_MS)
     }
+    this.startSensor()
   },
 
-  onHide() { this.stopLoop() },
-  onDestroy() { this.stopLoop() },
+  onHide() {
+    this.stopLoop()
+    this.stopSensor()
+  },
+
+  onDestroy() {
+    this.stopLoop()
+    this.stopSensor()
+  },
 
   stopLoop() {
     if (this.timer !== null) {
       clearInterval(this.timer)
       this.timer = null
     }
+  },
+
+  // ---------- датчики ----------
+
+  startSensor() {
+    if (this.sensorOn || !this.save.settings.motion) return
+    this.motion = game.motionNew()
+    try {
+      sensor.subscribeAccelerometer({
+        interval: 'game',
+        callback: (d) => this.onAccel(d),
+        fail: () => this.sensorFailed()
+      })
+      this.sensorOn = true
+    } catch (err) {
+      this.sensorFailed()
+    }
+  },
+
+  stopSensor() {
+    if (!this.sensorOn) return
+    try {
+      sensor.unsubscribeAccelerometer()
+    } catch (err) {
+      console.warn('sensor stop failed')
+    }
+    this.sensorOn = false
+  },
+
+  // Датчик недоступен (официально — не на всех часах): выключаем управление движением
+  sensorFailed() {
+    this.sensorOn = false
+    this.save.settings.motion = false
+    this.msg = 'Датчик движения недоступен на этих часах'
+    this.flashMsg()
+    this.persist()
+    this.updateHints()
+    if (this.screen !== 'fish') this.renderMenus()
+  },
+
+  onAccel(d) {
+    const s = this.save.settings
+    if (!s.motion || this.screen !== 'fish') return
+    const t = this.tick * TICK_MS / 1000
+    const ev = game.motionFeed(this.motion, d.x, d.y, d.z, t)
+    const g = this.g
+    if (ev.flick && ((g.state === 'idle' && s.castFlick) || (g.state === 'bite' && s.hookFlick))) {
+      game.tap(g)
+      return
+    }
+    if (s.tilt && g.state === 'fight' && ev.tilt !== 0) {
+      game.tilt(g, ev.tilt * game.SENS[s.sens], TICK_MS / 1000)
+    }
+  },
+
+  updateHints() {
+    const s = this.save.settings
+    this.castHint = s.motion && s.castFlick ? ' или взмах' : ''
+    this.hookHint = s.motion && s.hookFlick ? ' или рывок' : ''
+    const tiltOn = s.motion && s.tilt
+    this.fightHint = tiltOn
+      ? 'Наклон — двигать зону. Долгое нажатие — отпустить'
+      : 'Долгое нажатие — отпустить'
   },
 
   // ---------- ввод ----------
@@ -389,17 +454,16 @@ export default {
       this.lastY = y
       return
     }
-    const d = (y - this.lastY) * CROWN_SENSITIVITY
+    const d = y - this.lastY
     this.lastY = y
 
     if (this.tick - this.lastTouchTick > 25) {
       this.freeScrolls += 1
-      if (this.freeScrolls >= 3 && !this.crownSeen) this.crownSeen = true
     }
 
     if (d !== 0) {
       if (this.screen === 'fish') {
-        game.crown(this.g, d)
+        game.crown(this.g, d * game.SENS[this.save.settings.sens])
       } else {
         this.moveCursor(d)
       }
@@ -407,8 +471,7 @@ export default {
     if (Math.abs(y - CENTER) > RECENTER_AT) this.recenter()
   },
 
-  // Свайп влево/вправо переключает экраны. Во время заброса и боя не работает,
-  // чтобы не уйти с экрана посреди рыбалки.
+  // Свайп влево/вправо переключает экраны. Во время заброса и боя не работает.
   onSwipe(e) {
     if (this.state !== 'idle' && this.state !== 'result') return
     const i = SCREENS.indexOf(this.screen)
@@ -458,16 +521,36 @@ export default {
     this.renderMenus()
   },
 
-  // Тап в меню: купить / надеть вещь или выбрать место
+  // Тап в меню: купить / надеть вещь, выбрать место или переключить настройку
   activate() {
     const list = this.menuList()
     const it = list[this.cursor]
     if (!it) return
-    this.msg = game.buy(this.save, it.cat, it.id)
-    this.persist()
-    this.applyBg()
+    if (it.cat === 'set') {
+      this.toggleSetting(it.id)
+    } else {
+      this.msg = game.buy(this.save, it.cat, it.id)
+      this.persist()
+      this.applyBg()
+    }
     this.renderMenus()
     this.flashMsg()
+  },
+
+  toggleSetting(id) {
+    const s = this.save.settings
+    if (id === 'sens') {
+      s.sens = (s.sens + 1) % game.SENS.length
+    } else {
+      s[id] = !s[id]
+    }
+    this.persist()
+    this.updateHints()
+    if (id === 'motion') {
+      if (s.motion) this.startSensor()
+      else this.stopSensor()
+    }
+    this.msg = this.sensorOn || !s.motion || id !== 'motion' ? 'Сохранено' : this.msg
   },
 
   flashMsg() {
@@ -482,6 +565,16 @@ export default {
       return game.shopItems(this.save, 'rod')
         .concat(game.shopItems(this.save, 'reel'), game.shopItems(this.save, 'bait'))
     }
+    if (this.screen === 'settings') {
+      const s = this.save.settings
+      return [
+        { cat: 'set', id: 'motion', label: 'Датчики движения: ' + onOff(s.motion) },
+        { cat: 'set', id: 'castFlick', label: 'Заброс взмахом: ' + onOff(s.castFlick) },
+        { cat: 'set', id: 'hookFlick', label: 'Подсечка рывком: ' + onOff(s.hookFlick) },
+        { cat: 'set', id: 'tilt', label: 'Балансир (наклон): ' + onOff(s.tilt) },
+        { cat: 'set', id: 'sens', label: 'Коронка: ' + game.SENS_NAMES[s.sens] }
+      ]
+    }
     return game.LOCATIONS.map(loc => ({
       cat: 'loc',
       id: loc.id,
@@ -494,17 +587,29 @@ export default {
 
   renderMenus() {
     this.coinsText = 'Монеты: ' + this.save.coins
+    if (this.screen === 'shop') {
+      this.menuTitle = 'МАГАЗИН'
+      this.menuHint = 'Коронка — выбор, тап — купить или надеть'
+    } else if (this.screen === 'map') {
+      this.menuTitle = 'МЕСТА'
+      this.menuHint = 'Коронка — выбор, тап — купить или перейти'
+    } else {
+      this.menuTitle = 'НАСТРОЙКИ'
+      this.menuHint = 'Тап — переключить. Датчики есть не на всех часах'
+    }
+
     const list = this.menuList()
     const start = clamp(this.cursor - 1, 0, Math.max(0, list.length - 4))
     const rows = []
     for (let i = start; i < list.length && rows.length < 4; i++) {
       const it = list[i]
-      let mark = it.owned ? (it.equipped ? '● ' : '○ ') : ''
-      let tail = it.owned ? (it.equipped ? 'надето' : 'есть') : (it.price + ' монет')
-      rows.push({
-        text: mark + it.name + ' — ' + tail,
-        cls: 'row' + (i === this.cursor ? ' row-sel' : '')
-      })
+      let text = it.label
+      if (!text) {
+        const mark = it.owned ? (it.equipped ? '● ' : '○ ') : ''
+        const tail = it.owned ? (it.equipped ? 'надето' : 'есть') : (it.price + ' монет')
+        text = mark + it.name + ' — ' + tail
+      }
+      rows.push({ text: text, cls: 'row' + (i === this.cursor ? ' row-sel' : '') })
     }
     this.rows = rows
   },
@@ -541,7 +646,10 @@ export default {
       else if (ev === 'win') vibrator.vibrate({ mode: 'long' })
     }
 
-    if (this.state !== g.state) this.state = g.state
+    if (this.state !== g.state) {
+      this.state = g.state
+      this.updateHints()
+    }
     this.coinsText = 'Монеты: ' + this.save.coins
 
     if (g.state === 'idle') {
@@ -603,19 +711,18 @@ export default {
       key: SAVE_KEY,
       default: '',
       success: (data) => {
-        if (!data) {
-          this.applyBg()
-          return
+        if (data) {
+          try {
+            this.save = game.mergeSave(JSON.parse(data))
+            this.g.save = this.save
+          } catch (err) {
+            console.warn('save parse failed')
+          }
         }
-        try {
-          this.save = game.mergeSave(JSON.parse(data))
-          this.g.save = this.save
-          this.applyBg()
-          this.sync()
-          this.renderMenus()
-        } catch (err) {
-          console.warn('save parse failed')
-        }
+        this.applyBg()
+        this.updateHints()
+        this.sync()
+        this.renderMenus()
       }
     })
   }
