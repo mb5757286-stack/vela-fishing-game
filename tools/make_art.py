@@ -192,6 +192,19 @@ FISH = {
 }
 
 
+FISH.update({
+    'trout': dict(length=.86, height=.36, peak=.42, back=(70, 110, 80), belly=(240, 230, 220),
+                  fin=(200, 120, 110), dorsal=(.42, .2, .5), anal=(.6, .16, .4), eye_r=.16, lateral=True,
+                  spots=((230, 120, 120), 26, .035)),
+    'goldcarp': dict(length=.86, height=.54, peak=.44, back=(230, 170, 40), belly=(255, 235, 150),
+                     fin=(245, 190, 60), dorsal=(.4, .42, .45), anal=(.56, .22, .4), scales=(190, 120, 20),
+                     whiskers=2, eye_r=.13, lateral=True),
+    'sturgeon': dict(length=.92, height=.26, peak=.5, back=(80, 84, 96), belly=(235, 228, 215),
+                     fin=(100, 100, 115), tail='fork', tail_spread=1.4, dorsal=(.42, .2, .4),
+                     anal=(.6, .14, .3), spots=((190, 190, 200), 18, .05), whiskers=2, eye_r=.12),
+})
+
+
 def draw_boot():
     w, h = W * S, H * S
     im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
@@ -267,7 +280,29 @@ def sea_extra(d, s, hz):
     d.polygon([(0, s), (0, 330), (120, 360), (260, s)], fill=(220, 200, 150))  # песок
 
 
+def ice_extra(d, s, hz):
+    d.rectangle([0, hz - 10, s, hz + 4], fill=(225, 240, 250))             # снежный берег
+    for x in range(0, s, 60):                                             # ели
+        d.polygon([(x, hz - 6), (x + 30, hz - 70), (x + 60, hz - 6)], fill=(40, 80, 80))
+    for i in range(10):                                                   # трещины льда
+        x0 = 40 + i * 36
+        d.line([(x0, hz + 30), (x0 + 20, hz + 80), (x0 + 8, hz + 130)], fill=(180, 220, 240), width=2)
+    d.ellipse([60, 40, 110, 90], fill=(245, 250, 255))                    # луна
+
+
+def mountain_extra(d, s, hz):
+    d.polygon([(0, hz), (120, hz - 150), (220, hz - 40), (330, hz - 170), (s, hz - 60), (s, hz), (0, hz)],
+              fill=(90, 90, 110))
+    d.polygon([(330, hz - 170), (300, hz - 130), (350, hz - 120)], fill=(240, 245, 250))  # снег
+    d.polygon([(0, s), (0, 340), (160, 300), (300, 360), (s, 320), (s, s)], fill=(120, 100, 80))  # камни
+    for i in range(8):                                                    # перекат
+        y = hz + 30 + i * 30
+        d.line([(60 + i * 10, y), (200 + i * 14, y + 6)], fill=(210, 235, 245), width=3)
+
+
 def make_backgrounds():
+    background('ice', (150, 185, 210), (225, 238, 248), (120, 175, 200), (60, 120, 150), ice_extra)
+    background('mountain', (140, 180, 220), (220, 232, 242), (60, 110, 140), (30, 70, 100), mountain_extra)
     background('pond', (170, 210, 235), (210, 235, 245), (50, 120, 130), (30, 90, 110), pond_extra)
     background('river', (160, 200, 220), (200, 225, 235), (40, 100, 140), (25, 70, 100), river_extra)
     background('lake', (150, 190, 220), (215, 232, 240), (50, 110, 140), (25, 75, 105), lake_extra)

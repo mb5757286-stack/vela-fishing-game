@@ -13,14 +13,19 @@ var FISH = {
   flounder: { name: 'Камбала',       min: 0.3,  max: 3.0,  price: 16, speed: 90,  zone: 100 },
   horse:    { name: 'Ставрида',      min: 0.1,  max: 0.6,  price: 7,  speed: 120, zone: 104 },
   seaperch: { name: 'Морской окунь', min: 0.3,  max: 4.0,  price: 13, speed: 140, zone: 88 },
+  trout:    { name: 'Форель',       min: 0.3,  max: 4.0,  price: 14, speed: 150, zone: 84,  burst: true },
+  goldcarp: { name: 'Золотой карп',  min: 1.5,  max: 9.0,  price: 45, speed: 185, zone: 66,  burst: true, rare: true },
+  sturgeon: { name: 'Белуга',        min: 20,   max: 90,   price: 70, speed: 210, zone: 60,  burst: true, rare: true },
   boot:     { name: 'Старый сапог',  min: 0.3,  max: 0.6,  price: 0,  speed: 0,   zone: 0, junk: true }
 }
 
 var LOCATIONS = [
-  { id: 'pond',  name: 'Пруд',  price: 0,    fish: { bleak: 30, roach: 30, crucian: 20, perch: 8, boot: 3 } },
-  { id: 'river', name: 'Река',  price: 150,  fish: { roach: 14, perch: 16, pike: 12, catfish: 5, bleak: 12, boot: 3 } },
-  { id: 'lake',  name: 'Озеро', price: 400,  fish: { bream: 16, carp: 10, perch: 12, pike: 10, zander: 8 } },
-  { id: 'sea',   name: 'Море',  price: 1000, fish: { flounder: 14, horse: 18, seaperch: 12, zander: 4 } }
+  { id: 'pond',     name: 'Пруд',         price: 0,    music: 'calm',   fish: { bleak: 30, roach: 30, crucian: 20, perch: 8, goldcarp: 1, boot: 3 } },
+  { id: 'river',    name: 'Река',         price: 150,  music: 'upbeat', fish: { roach: 14, perch: 16, pike: 12, catfish: 5, bleak: 12, boot: 3 } },
+  { id: 'lake',     name: 'Озеро',        price: 400,  music: 'calm',   fish: { bream: 16, carp: 10, perch: 12, pike: 10, zander: 8, goldcarp: 2 } },
+  { id: 'ice',      name: 'Зимнее озеро', price: 600,  music: 'calm',   fish: { perch: 20, pike: 12, zander: 10, roach: 12, goldcarp: 1, boot: 2 } },
+  { id: 'sea',      name: 'Море',         price: 1000, music: 'upbeat', fish: { flounder: 14, horse: 18, seaperch: 12, zander: 4, sturgeon: 1 } },
+  { id: 'mountain', name: 'Горный ручей', price: 1500, music: 'upbeat', fish: { trout: 30, roach: 5, bleak: 6 } }
 ]
 
 // reach — насколько дальше забрасывает (и крупнее рыба), lineMax — кг, с которых леска перегружена
@@ -64,8 +69,8 @@ function defaultSave() {
     coins: 0,
     owned: { rod: ['bamboo'], reel: ['simple'], bait: ['worm'], loc: ['pond'] },
     eq: { rod: 'bamboo', reel: 'simple', bait: 'worm', loc: 'pond' },
-    stats: { caught: 0, lost: 0, earned: 0, bestId: '', bestKg: 0 },
-    settings: { motion: true, castFlick: true, hookFlick: true, tilt: true, sens: 1 }
+    stats: { caught: 0, lost: 0, earned: 0, bestId: '', bestKg: 0, streak: 0, seen: [] },
+    settings: { motion: true, castFlick: true, hookFlick: true, tilt: true, sens: 1, musicVol: 50, sfx: true, vib: true }
   }
 }
 
@@ -91,14 +96,17 @@ function mergeSave(s) {
     if (typeof st.lost === 'number') d.stats.lost = st.lost
     if (typeof st.earned === 'number') d.stats.earned = st.earned
     if (typeof st.bestKg === 'number') { d.stats.bestKg = st.bestKg; d.stats.bestId = FISH[st.bestId] ? st.bestId : '' }
+    if (typeof st.streak === 'number' && st.streak >= 0) d.stats.streak = st.streak
+    if (Array.isArray(st.seen)) d.stats.seen = st.seen.filter(function (id) { return !!FISH[id] && !FISH[id].junk })
   }
   var ds = d.settings
   if (s.settings && typeof s.settings === 'object') {
-    var keys = ['motion', 'castFlick', 'hookFlick', 'tilt']
+    var keys = ['motion', 'castFlick', 'hookFlick', 'tilt', 'sfx', 'vib']
     for (var k = 0; k < keys.length; k++) {
       if (typeof s.settings[keys[k]] === 'boolean') ds[keys[k]] = s.settings[keys[k]]
     }
     if (s.settings.sens === 0 || s.settings.sens === 1 || s.settings.sens === 2) ds.sens = s.settings.sens
+    if ([0, 25, 50, 75, 100].indexOf(s.settings.musicVol) >= 0) ds.musicVol = s.settings.musicVol
   }
   return d
 }
@@ -161,6 +169,8 @@ function create(rnd, save) {
     progress: 30,
     fightTime: 0,
     inside: false,
+    burstT: 0,
+    burstLeft: 0,
     events: [],         // 'bite' | 'hook' | 'win' | 'lose' — страница превращает их в вибрацию
     dirty: false,       // true — нужно сохранить прогресс
     last: null          // итог последней рыбалки: { won, title, line, gain, fishId, kg }
@@ -243,28 +253,41 @@ function hook(g) {
   g.progress = 30
   g.fightTime = 0
   g.inside = false
+  g.burstT = 0
+  g.burstLeft = 0
 }
 
 function finish(g, win, title, line) {
   var s = g.save
   var f = FISH[g.fishId]
+  var st = s.stats
   g.state = 'result'
-  g.last = { won: win, title: title, line: line, gain: 0, fishId: g.fishId, kg: g.weight }
+  g.last = { won: win, title: title, line: line, gain: 0, fishId: g.fishId, kg: g.weight, rare: !!f.rare, bonus: 1, isNew: false }
   if (win) {
     if (!f.junk) {
-      var coins = Math.max(1, Math.round(g.weight * f.price * COIN_RATE))
+      st.streak += 1
+      var bonus = Math.min(2, 1 + 0.1 * (st.streak - 1))
+      var coins = Math.max(1, Math.round(g.weight * f.price * COIN_RATE * bonus))
       g.last.gain = coins
+      g.last.bonus = bonus
       s.coins += coins
-      s.stats.earned += coins
-      s.stats.caught += 1
-      if (g.weight > s.stats.bestKg) {
-        s.stats.bestKg = g.weight
-        s.stats.bestId = g.fishId
+      st.earned += coins
+      st.caught += 1
+      if (st.seen.indexOf(g.fishId) < 0) {
+        st.seen.push(g.fishId)
+        g.last.isNew = true
       }
+      if (g.weight > st.bestKg) {
+        st.bestKg = g.weight
+        st.bestId = g.fishId
+      }
+      g.events.push(f.rare ? 'rare' : 'win')
+    } else {
+      g.events.push('win')
     }
-    g.events.push('win')
   } else {
-    s.stats.lost += 1
+    st.lost += 1
+    st.streak = 0
     g.events.push('lose')
   }
   g.dirty = true
@@ -310,7 +333,14 @@ function fightStep(g, dt) {
   g.fightTime += dt
 
   var frac = clamp((g.weight - f.min) / (f.max - f.min), 0, 1)
-  var speed = f.speed * (0.85 + 0.3 * frac)
+  // Редкая рыба иногда рвёт леску: короткий рывок в 3 раза быстрее
+  var mult = 1
+  if (f.burst) {
+    g.burstT += dt
+    if (g.burstT > 2.2) { g.burstT = 0; g.burstLeft = 0.5 }
+    if (g.burstLeft > 0) { g.burstLeft -= dt; mult = 3 }
+  }
+  var speed = f.speed * (0.85 + 0.3 * frac) * mult
 
   g.retarget -= dt
   if (g.retarget <= 0) {
@@ -399,6 +429,7 @@ export default {
   powerLabel: powerLabel,
   SENS: SENS,
   SENS_NAMES: SENS_NAMES,
+  COIN_RATE: COIN_RATE,
   motionNew: motionNew,
   motionFeed: motionFeed,
   tilt: tilt

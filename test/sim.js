@@ -177,4 +177,30 @@ console.log('\n--- Датчики и балансир ---')
 }
 console.log('рывки, мёртвая зона, балансир, настройки — ок')
 
+console.log('\n--- Редкие рыбы, серия, коллекция ---')
+{
+  const rare = Object.keys(G.FISH).filter(id => G.FISH[id].rare)
+  assert(rare.length >= 2, 'редких рыб должно быть не меньше двух')
+  for (const id of rare) assert(G.FISH[id].price >= 40, id + ': редкая рыба должна платить много')
+  const withRare = G.LOCATIONS.filter(l => Object.keys(l.fish).some(id => G.FISH[id].rare))
+  assert(withRare.length >= 2, 'редкие рыбы встречаются хотя бы в двух местах')
+  for (const loc of G.LOCATIONS) assert(loc.music === 'calm' || loc.music === 'upbeat', loc.name + ': нет музыки')
+  const sv = G.defaultSave()
+  sv.stats.streak = 3
+  const g = G.create(mulberry(21), sv)
+  g.power = 50; G.tap(g)
+  while (g.state !== 'bite') G.step(g, DT)
+  g.state = 'fight'; g.fishId = 'bleak'; g.weight = 0.5; g.progress = 100
+  G.step(g, DT)
+  assert(g.last && g.last.won, 'прогресс 100% даёт поимку')
+  assert(g.last.bonus > 1, 'серия повышает бонус: ' + g.last.bonus)
+  assert(sv.stats.streak === 4, 'серия растёт после поимки')
+  assert(sv.stats.seen.indexOf('bleak') >= 0, 'вид попадает в коллекцию')
+  const m = G.mergeSave({ settings: { musicVol: 33, sfx: 'нет', vib: false } })
+  assert.strictEqual(m.settings.musicVol, 50, 'громкость только из набора 0/25/50/75/100')
+  assert.strictEqual(m.settings.vib, false)
+  assert.strictEqual(m.settings.sfx, true)
+}
+console.log('редкие рыбы, серия, коллекция — ок')
+
 console.log('\nВсе проверки пройдены')

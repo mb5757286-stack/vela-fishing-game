@@ -9,7 +9,7 @@
       <div class="scene" if="{{screen === 'fish'}}">
         <div class="hud">
           <text class="hud-coins">{{coinsText}}</text>
-          <text class="hud-loc">{{locName}}</text>
+          <text class="hud-loc">{{locName}}{{streakText}}</text>
         </div>
 
         <div class="col" if="{{state === 'idle'}}">
@@ -19,7 +19,7 @@
             <div class="bar-fill" style="width: {{powerPx}}px;"></div>
           </div>
           <text class="hint">Коронка — дальность</text>
-          <text class="hint">Тап{{castHint}} — забросить</text>
+          <text class="hint">Тап{{castHint}} — забросить, два тапа — дальний</text>
           <text class="hint">Свайп ← → — меню</text>
           <text class="stat" if="{{bestText}}">Рекорд: {{bestText}}</text>
         </div>
@@ -35,7 +35,7 @@
         </div>
 
         <div class="col" if="{{state === 'fight'}}">
-          <text class="sub">Держи рыбу в зоне</text>
+          <text class="sub">{{fightTitle}}</text>
           <text class="hint">{{fightHint}}</text>
           <div class="fight-row">
             <stack class="track">
@@ -50,11 +50,13 @@
 
         <div class="col" if="{{state === 'result'}}">
           <image class="res-img" src="{{resSrc}}"></image>
-          <text class="title-win" if="{{won}}">Поймал!</text>
+          <text class="title-rare" if="{{rare}}">РЕДКАЯ РЫБА!</text>
+          <text class="title-win" if="{{won && !rare}}">Поймал!</text>
           <text class="title-lose" if="{{!won}}">Не повезло</text>
           <text class="big">{{resTitle}}</text>
           <text class="sub">{{resLine}}</text>
-          <text class="stat" if="{{gain > 0}}">+{{gain}} монет</text>
+          <text class="stat" if="{{gain > 0}}">+{{gain}} монет{{bonusText}}</text>
+          <text class="new-tag" if="{{isNew}}">Новый вид в коллекции!</text>
           <text class="hint">Тап — дальше</text>
         </div>
       </div>
@@ -62,7 +64,7 @@
       <!-- ===== Меню: магазин, места, настройки ===== -->
       <div class="menu" if="{{screen !== 'fish'}}">
         <text class="menu-title">{{menuTitle}}</text>
-        <text class="menu-sub">{{coinsText}}</text>
+        <text class="menu-sub">{{menuSub}}</text>
         <div class="list">
           <div for="{{rows}}" class="{{$item.cls}}">
             <text class="row-text">{{$item.text}}</text>
@@ -142,6 +144,11 @@
     color: #2ecc71;
     margin-top: 6px;
   }
+  .title-rare {
+    font-size: 36px;
+    color: #ffd166;
+    margin-top: 6px;
+  }
   .title-lose {
     font-size: 38px;
     color: #e67e5a;
@@ -168,6 +175,12 @@
     font-size: 22px;
     color: #ffd166;
     margin-top: 8px;
+    text-align: center;
+  }
+  .new-tag {
+    font-size: 20px;
+    color: #7fe3ff;
+    margin-top: 4px;
     text-align: center;
   }
   .hint {
@@ -260,7 +273,7 @@
     color: #ffffff;
   }
   .menu-sub {
-    font-size: 22px;
+    font-size: 20px;
     color: #ffd166;
     margin-top: 2px;
   }
@@ -298,6 +311,7 @@
 import vibrator from '@system.vibrator'
 import storage from '@system.storage'
 import sensor from '@system.sensor'
+import audio from '@system.audio'
 import game from '../common/game.js'
 
 const SAVE_KEY = 'fishing_v2'
@@ -305,7 +319,23 @@ const MENU_STEP = 30            // сколько прокрутки на одн
 const CENTER = 3000
 const RECENTER_AT = 1800
 const TICK_MS = 40
+const DOUBLE_TAP_MS = 350
 const SCREENS = ['fish', 'shop', 'map', 'settings']
+const VOLUMES = [0, 25, 50, 75, 100]
+
+const MUSIC = {
+  calm: '/common/snd/music_calm.mp3',
+  upbeat: '/common/snd/music_upbeat.mp3'
+}
+const SFX = {
+  cast: '/common/snd/sfx_cast.mp3',
+  bite: '/common/snd/sfx_bite.mp3',
+  hook: '/common/snd/sfx_hook.mp3',
+  win: '/common/snd/sfx_win.mp3',
+  coin: '/common/snd/sfx_coin.mp3',
+  lose: '/common/snd/sfx_lose.mp3',
+  rare: '/common/snd/sfx_rare.mp3'
+}
 
 function clamp(v, a, b) { return v < a ? a : (v > b ? b : v) }
 function onOff(v) { return v ? 'вкл' : 'выкл' }
@@ -315,7 +345,9 @@ export default {
     screen: 'fish',
     state: 'idle',
     coinsText: '',
+    menuSub: '',
     locName: '',
+    streakText: '',
     bgSrc: '',
     powerPx: 140,
     powerText: 'Средне',
@@ -324,16 +356,20 @@ export default {
     zoneH: 120,
     fishY: 0,
     fishSrc: '',
+    fightTitle: 'Держи рыбу в зоне',
+    fightHint: 'Долгое нажатие — отпустить',
     progressPx: 90,
     resSrc: '',
     resTitle: '',
     resLine: '',
     won: false,
+    rare: false,
+    isNew: false,
     gain: 0,
+    bonusText: '',
     bestText: '',
     castHint: '',
     hookHint: '',
-    fightHint: 'Долгое нажатие — отпустить',
     rows: [],
     msg: '',
     menuTitle: '',
@@ -348,11 +384,12 @@ export default {
     this.recentering = false
     this.tick = 0
     this.lastTouchTick = -1000
-    this.freeScrolls = 0
+    this.lastTapAt = 0
     this.cursor = 0
     this.acc = 0
     this.msgTimer = null
     this.sensorOn = false
+    this.track = ''
     this.motion = game.motionNew()
     this.loadSave()
   },
@@ -363,16 +400,19 @@ export default {
       this.timer = setInterval(() => this.loop(), TICK_MS)
     }
     this.startSensor()
+    this.playMusic(this.locMusic())
   },
 
   onHide() {
     this.stopLoop()
     this.stopSensor()
+    this.pauseMusic()
   },
 
   onDestroy() {
     this.stopLoop()
     this.stopSensor()
+    this.pauseMusic()
   },
 
   stopLoop() {
@@ -380,6 +420,70 @@ export default {
       clearInterval(this.timer)
       this.timer = null
     }
+  },
+
+  // ---------- звук ----------
+
+  musicVolume() { return this.save.settings.musicVol / 100 },
+
+  locMusic() { return game.gear(this.g).loc.music },
+
+  playMusic(track) {
+    this.track = track
+    if (this.save.settings.musicVol === 0) {
+      this.pauseMusic()
+      return
+    }
+    try {
+      audio.src = MUSIC[track]
+      audio.loop = true
+      audio.volume = this.musicVolume()
+      audio.play()
+    } catch (err) {
+      console.warn('music failed')
+    }
+  },
+
+  pauseMusic() {
+    try { audio.pause() } catch (err) { /* нет звука — играем без него */ }
+  },
+
+  // Эффект прерывает музыку (один плеер на часах), потом музыка продолжается с того же места
+  playSfx(name) {
+    if (!this.save.settings.sfx || !SFX[name]) return
+    let resumeAt = 0
+    try { resumeAt = audio.currentTime || 0 } catch (err) { resumeAt = 0 }
+    try {
+      audio.onended = null
+      audio.loop = false
+      audio.src = SFX[name]
+      audio.volume = Math.min(1, this.musicVolume() + 0.4)
+      audio.onended = () => {
+        audio.onended = null
+        this.resumeMusic(resumeAt)
+      }
+      audio.play()
+    } catch (err) {
+      console.warn('sfx failed')
+    }
+  },
+
+  resumeMusic(at) {
+    if (!this.track || this.save.settings.musicVol === 0) return
+    try {
+      audio.src = MUSIC[this.track]
+      audio.loop = true
+      audio.volume = this.musicVolume()
+      audio.currentTime = at
+      audio.play()
+    } catch (err) {
+      console.warn('music resume failed')
+    }
+  },
+
+  buzz(mode) {
+    if (!this.save.settings.vib) return
+    try { vibrator.vibrate({ mode: mode }) } catch (err) { /* без вибрации */ }
   },
 
   // ---------- датчики ----------
@@ -427,7 +531,7 @@ export default {
     const ev = game.motionFeed(this.motion, d.x, d.y, d.z, t)
     const g = this.g
     if (ev.flick && ((g.state === 'idle' && s.castFlick) || (g.state === 'bite' && s.hookFlick))) {
-      game.tap(g)
+      this.doTap()
       return
     }
     if (s.tilt && g.state === 'fight' && ev.tilt !== 0) {
@@ -439,8 +543,7 @@ export default {
     const s = this.save.settings
     this.castHint = s.motion && s.castFlick ? ' или взмах' : ''
     this.hookHint = s.motion && s.hookFlick ? ' или рывок' : ''
-    const tiltOn = s.motion && s.tilt
-    this.fightHint = tiltOn
+    this.fightHint = s.motion && s.tilt
       ? 'Наклон — двигать зону. Долгое нажатие — отпустить'
       : 'Долгое нажатие — отпустить'
   },
@@ -457,10 +560,6 @@ export default {
     const d = y - this.lastY
     this.lastY = y
 
-    if (this.tick - this.lastTouchTick > 25) {
-      this.freeScrolls += 1
-    }
-
     if (d !== 0) {
       if (this.screen === 'fish') {
         game.crown(this.g, d * game.SENS[this.save.settings.sens])
@@ -473,7 +572,7 @@ export default {
 
   // Свайп влево/вправо переключает экраны. Во время заброса и боя не работает.
   onSwipe(e) {
-    if (this.state !== 'idle' && this.state !== 'result') return
+    if (this.g.state !== 'idle' && this.g.state !== 'result') return
     const i = SCREENS.indexOf(this.screen)
     if (e.direction === 'left') this.setScreen(SCREENS[(i + 1) % SCREENS.length])
     else if (e.direction === 'right') this.setScreen(SCREENS[(i + SCREENS.length - 1) % SCREENS.length])
@@ -491,12 +590,21 @@ export default {
   },
 
   onTap() {
-    if (this.screen === 'fish') {
-      game.tap(this.g)
-      this.sync()
-    } else {
+    if (this.screen !== 'fish') {
       this.activate()
+      return
     }
+    const now = Date.now()
+    const quick = now - this.lastTapAt < DOUBLE_TAP_MS
+    this.lastTapAt = quick ? 0 : now
+    // Двойной тап в простое — заброс на полную дальность
+    if (quick && this.g.state === 'idle') this.g.power = 100
+    this.doTap()
+  },
+
+  doTap() {
+    game.tap(this.g)
+    this.sync()
   },
 
   setScreen(s) {
@@ -541,6 +649,9 @@ export default {
     const s = this.save.settings
     if (id === 'sens') {
       s.sens = (s.sens + 1) % game.SENS.length
+    } else if (id === 'musicVol') {
+      s.musicVol = VOLUMES[(VOLUMES.indexOf(s.musicVol) + 1) % VOLUMES.length]
+      this.playMusic(this.track || this.locMusic())
     } else {
       s[id] = !s[id]
     }
@@ -550,7 +661,7 @@ export default {
       if (s.motion) this.startSensor()
       else this.stopSensor()
     }
-    this.msg = this.sensorOn || !s.motion || id !== 'motion' ? 'Сохранено' : this.msg
+    this.msg = id === 'motion' && s.motion && !this.sensorOn ? this.msg : 'Сохранено'
   },
 
   flashMsg() {
@@ -572,7 +683,10 @@ export default {
         { cat: 'set', id: 'castFlick', label: 'Заброс взмахом: ' + onOff(s.castFlick) },
         { cat: 'set', id: 'hookFlick', label: 'Подсечка рывком: ' + onOff(s.hookFlick) },
         { cat: 'set', id: 'tilt', label: 'Балансир (наклон): ' + onOff(s.tilt) },
-        { cat: 'set', id: 'sens', label: 'Коронка: ' + game.SENS_NAMES[s.sens] }
+        { cat: 'set', id: 'sens', label: 'Коронка: ' + game.SENS_NAMES[s.sens] },
+        { cat: 'set', id: 'musicVol', label: 'Громкость музыки: ' + (s.musicVol === 0 ? 'выкл' : s.musicVol + '%') },
+        { cat: 'set', id: 'sfx', label: 'Звуковые эффекты: ' + onOff(s.sfx) },
+        { cat: 'set', id: 'vib', label: 'Вибрация: ' + onOff(s.vib) }
       ]
     }
     return game.LOCATIONS.map(loc => ({
@@ -585,17 +699,25 @@ export default {
     }))
   },
 
+  collectionText() {
+    const total = Object.keys(game.FISH).filter(id => !game.FISH[id].junk).length
+    return 'Коллекция: ' + this.save.stats.seen.length + '/' + total
+  },
+
   renderMenus() {
     this.coinsText = 'Монеты: ' + this.save.coins
     if (this.screen === 'shop') {
       this.menuTitle = 'МАГАЗИН'
       this.menuHint = 'Коронка — выбор, тап — купить или надеть'
+      this.menuSub = this.coinsText
     } else if (this.screen === 'map') {
       this.menuTitle = 'МЕСТА'
       this.menuHint = 'Коронка — выбор, тап — купить или перейти'
+      this.menuSub = this.coinsText + '   ' + this.collectionText()
     } else {
       this.menuTitle = 'НАСТРОЙКИ'
       this.menuHint = 'Тап — переключить. Датчики есть не на всех часах'
+      this.menuSub = ''
     }
 
     const list = this.menuList()
@@ -618,6 +740,7 @@ export default {
     const loc = game.gear(this.g).loc
     this.bgSrc = '/common/img/bg_' + loc.id + '.png'
     this.locName = loc.name
+    if (loc.music !== this.track) this.playMusic(loc.music)
   },
 
   // ---------- игровой цикл ----------
@@ -641,16 +764,21 @@ export default {
 
     while (g.events.length) {
       const ev = g.events.shift()
-      if (ev === 'bite') vibrator.vibrate({ mode: 'long' })
-      else if (ev === 'hook' || ev === 'lose') vibrator.vibrate({ mode: 'short' })
-      else if (ev === 'win') vibrator.vibrate({ mode: 'long' })
+      if (ev === 'bite') { this.buzz('long'); this.playSfx('bite') }
+      else if (ev === 'hook') { this.buzz('short'); this.playSfx('hook') }
+      else if (ev === 'lose') { this.buzz('short'); this.playSfx('lose') }
+      else if (ev === 'win') { this.buzz('long'); this.playSfx('win') }
+      else if (ev === 'rare') { this.buzz('long'); this.playSfx('rare') }
     }
 
     if (this.state !== g.state) {
+      if (g.state === 'casting') this.playSfx('cast')
       this.state = g.state
       this.updateHints()
     }
     this.coinsText = 'Монеты: ' + this.save.coins
+    const streak = this.save.stats.streak
+    this.streakText = streak > 1 ? '   Серия: ' + streak : ''
 
     if (g.state === 'idle') {
       const px = Math.round(g.power * 2.8)
@@ -672,6 +800,9 @@ export default {
       if (this.zoneH !== g.zoneH) this.zoneH = g.zoneH
       if (this.fishY !== f) this.fishY = f
       if (this.progressPx !== p) this.progressPx = p
+      const fish = game.FISH[g.fishId]
+      const title = fish.rare ? 'Редкая рыба! Держи!' : (g.burstLeft > 0 ? 'Рывок!' : 'Держи рыбу в зоне')
+      if (this.fightTitle !== title) this.fightTitle = title
       const src = '/common/img/fish_' + g.fishId + '.png'
       if (this.fishSrc !== src) this.fishSrc = src
     }
@@ -679,7 +810,11 @@ export default {
     if (g.state === 'result' && g.last) {
       const L = g.last
       if (this.won !== L.won) this.won = L.won
+      if (this.rare !== L.rare) this.rare = L.rare
+      if (this.isNew !== L.isNew) this.isNew = L.isNew
       if (this.gain !== L.gain) this.gain = L.gain
+      const bt = L.bonus > 1 ? '  (×' + L.bonus.toFixed(1) + ' серия)' : ''
+      if (this.bonusText !== bt) this.bonusText = bt
       if (this.resTitle !== L.title) this.resTitle = L.title
       if (this.resLine !== L.line) this.resLine = L.line
       const src = '/common/img/fish_' + L.fishId + '.png'
