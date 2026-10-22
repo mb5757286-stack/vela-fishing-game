@@ -42,8 +42,13 @@
 <script>
 import geolocation from '@system.geolocation'
 import vibrator from '@system.vibrator'
-import ZONES from '../common/zones.js'
+import fetch from '@system.fetch'
+import storage from '@system.storage'
+import BUNDLED from '../common/zones.js'
 import geo from '../common/geo.js'
+import config from '../common/config.js'
+
+const CACHE_KEY = 'zones_cache_v1'
 
 const REPEAT_MS = 15000   // пока внутри зоны, вибрируем раз в 15 секунд
 
@@ -58,10 +63,41 @@ export default {
   onInit() {
     this.inside = []
     this.lastBuzz = 0
+    this.zones = BUNDLED
   },
 
   onShow() {
+    this.loadZones()
     this.startGps()
+  },
+
+  // Зоны: сначала из кэша, потом обновляем с сервера (если адрес задан)
+  loadZones() {
+    try {
+      storage.get({
+        key: CACHE_KEY,
+        default: '',
+        success: (data) => {
+          try { if (data) this.zones = JSON.parse(data) } catch (err) { /* битый кэш — игнор */ }
+        }
+      })
+    } catch (err) { /* без хранилища — работаем со вшитыми зонами */ }
+    if (!config.ZONES_URL) return
+    try {
+      fetch.fetch({
+        url: config.ZONES_URL,
+        responseType: 'text',
+        success: (ret) => {
+          try {
+            const list = JSON.parse(ret.data)
+            if (!Array.isArray(list)) return
+            this.zones = list
+            storage.set({ key: CACHE_KEY, value: JSON.stringify(list) })
+          } catch (err) { /* ответ не похож на зоны */ }
+        },
+        fail: () => { /* сети нет — остаются зоны из кэша */ }
+      })
+    } catch (err) { /* fetch недоступен */ }
   },
 
   onHide() {
@@ -102,7 +138,7 @@ export default {
     const lon = d && d.longitude
     if (typeof lat !== 'number' || typeof lon !== 'number' || isNaN(lat) || isNaN(lon)) return
 
-    const hit = ZONES.filter(z => geo.inZone(lat, lon, z))
+    const hit = this.zones.filter(z => geo.inZone(lat, lon, z))
     if (hit.length > 0) {
       this.status = 'НЕ ТУДА!'
       this.sub = hit.map(z => z.name).join(', ')
@@ -116,7 +152,7 @@ export default {
       this.inside = hit.map(z => z.name)
     } else {
       this.status = 'Всё ок'
-      this.sub = ZONES.length > 0 ? 'Зон на карте: ' + ZONES.length : 'Зон пока нет'
+      this.sub = this.zones.length > 0 ? 'Зон на карте: ' + this.zones.length : 'Зон пока нет'
       this.pageCls = 'page-ok'
       this.inside = []
     }

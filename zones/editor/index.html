@@ -39,8 +39,15 @@
     </div>
     <div class="hint" id="help">Выберите режим. Многоугольник: ставьте точки, потом «Готово». Круг: тап в центр, тап по краю.</div>
     <div id="list"></div>
+    <div class="hint">Сервер (часы берут зоны отсюда):</div>
+    <input id="srv" placeholder="https://ваш-домен/zones.json">
+    <input id="tok" type="password" placeholder="Токен (ZONES_TOKEN)" style="margin-top:6px">
+    <div class="row" style="margin-top:8px">
+      <button id="upload">Отправить на сервер</button>
+    </div>
+    <div class="hint" id="upmsg"></div>
     <div class="row">
-      <button id="export">Сформировать zones.js</button>
+      <button id="export" class="secondary">Скачать zones.js</button>
     </div>
     <div class="hint">Скопируйте текст в файл zones/src/common/zones.js в репозитории и отправьте (commit + push). Часы соберут приложение с новыми зонами.</div>
     <textarea id="out" readonly></textarea>
@@ -168,6 +175,36 @@
         a.click()
         a.remove()
       } catch (e) { /* скачивание недоступно — текст в поле */ }
+    }
+
+    // Адрес и токен сохраняем на телефоне, чтобы не вводить каждый раз
+    var srvEl = document.getElementById('srv'), tokEl = document.getElementById('tok')
+    try {
+      srvEl.value = localStorage.getItem('zones_srv') || ''
+      tokEl.value = localStorage.getItem('zones_tok') || ''
+    } catch (e) { /* без хранилища — ввод вручную */ }
+
+    document.getElementById('upload').onclick = function () {
+      var msg = document.getElementById('upmsg')
+      var url = srvEl.value.trim()
+      if (!url) { msg.textContent = 'Укажите адрес сервера.'; return }
+      try {
+        localStorage.setItem('zones_srv', url)
+        localStorage.setItem('zones_tok', tokEl.value)
+      } catch (e) { /* не сохранится — не критично */ }
+      msg.textContent = 'Отправляю...'
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Token': tokEl.value },
+        body: JSON.stringify(zones)
+      }).then(function (r) {
+        return r.json().then(function (j) { return { ok: r.ok, j: j } })
+      }).then(function (res) {
+        msg.textContent = res.ok ? 'Готово: зон на сервере ' + res.j.count + '. Часы обновятся при следующем открытии.'
+          : 'Ошибка: ' + (res.j && res.j.error ? res.j.error : 'сервер отказал')
+      }).catch(function () {
+        msg.textContent = 'Нет связи с сервером. Проверьте адрес и интернет.'
+      })
     }
 
     setMode('poly')
