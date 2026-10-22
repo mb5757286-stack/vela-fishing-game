@@ -79,7 +79,7 @@ function defaultSave() {
     owned: { rod: ['bamboo'], reel: ['simple'], bait: ['worm'], loc: ['pond'] },
     eq: { rod: 'bamboo', reel: 'simple', bait: 'worm', loc: 'pond' },
     stats: { caught: 0, lost: 0, earned: 0, bestId: '', bestKg: 0, streak: 0, seen: [] },
-    settings: { motion: true, castFlick: true, hookFlick: true, tilt: true, sens: 1, musicVol: 25, sfx: true, vib: true }
+    settings: { motion: true, castFlick: true, hookFlick: true, tilt: true, sens: 1, musicVol: 25, sfxVol: 50, sfx: true, vib: true }
   }
 }
 
@@ -116,6 +116,7 @@ function mergeSave(s) {
     }
     if (s.settings.sens === 0 || s.settings.sens === 1 || s.settings.sens === 2) ds.sens = s.settings.sens
     if ([0, 25, 50, 75, 100].indexOf(s.settings.musicVol) >= 0) ds.musicVol = s.settings.musicVol
+    if ([0, 25, 50, 75, 100].indexOf(s.settings.sfxVol) >= 0) ds.sfxVol = s.settings.sfxVol
   }
   return d
 }

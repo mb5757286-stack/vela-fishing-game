@@ -521,14 +521,14 @@ export default {
 
   // Эффект прерывает музыку (один плеер на часах), потом музыка продолжается с того же места
   playSfx(name) {
-    if (!this.save.settings.sfx || !SFX[name]) return
+    if (!this.save.settings.sfx || this.save.settings.sfxVol === 0 || !SFX[name]) return
     let resumeAt = 0
     try { resumeAt = audio.currentTime || 0 } catch (err) { resumeAt = 0 }
     try {
       audio.onended = null
       audio.loop = false
       audio.src = SFX[name]
-      audio.volume = 0.6   // эффекты не зависят от ползунка музыки
+      audio.volume = this.save.settings.sfxVol / 100   // отдельная громкость эффектов
       audio.onended = () => {
         audio.onended = null
         this.resumeMusic(resumeAt)
@@ -764,6 +764,8 @@ export default {
     }
     if (id === 'sens') {
       s.sens = (s.sens + 1) % game.SENS.length
+    } else if (id === 'sfxVol') {
+      s.sfxVol = VOLUMES[(VOLUMES.indexOf(s.sfxVol) + 1) % VOLUMES.length]
     } else if (id === 'musicVol') {
       s.musicVol = VOLUMES[(VOLUMES.indexOf(s.musicVol) + 1) % VOLUMES.length]
       this.playMusic(this.track || this.locMusic())
@@ -800,6 +802,7 @@ export default {
         { cat: 'set', id: 'tilt', label: 'Балансир (наклон): ' + onOff(s.tilt) },
         { cat: 'set', id: 'sens', label: 'Коронка: ' + game.SENS_NAMES[s.sens] },
         { cat: 'set', id: 'musicVol', label: 'Громкость музыки: ' + (s.musicVol === 0 ? 'выкл' : s.musicVol + '%') },
+        { cat: 'set', id: 'sfxVol', label: 'Громкость эффектов: ' + (s.sfxVol === 0 ? 'выкл' : s.sfxVol + '%') },
         { cat: 'set', id: 'sfx', label: 'Звуковые эффекты: ' + onOff(s.sfx) },
         { cat: 'set', id: 'testSfx', label: 'Проверить звук' },
         { cat: 'set', id: 'vib', label: 'Вибрация: ' + onOff(s.vib) }
