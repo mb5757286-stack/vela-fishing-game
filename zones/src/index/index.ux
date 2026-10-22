@@ -175,11 +175,16 @@ export default {
     this.info = lat.toFixed(4) + ', ' + lon.toFixed(4)
   },
 
+  // Сильная серия: три длинных импульса подряд
   buzz() {
-    try {
-      vibrator.vibrate({ mode: 'long' })
-    } catch (err) {
-      console.warn('vibrate failed')
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => {
+        try {
+          vibrator.vibrate({ mode: 'long' })
+        } catch (err) {
+          console.warn('vibrate failed')
+        }
+      }, i * 700)
     }
   }
 }
