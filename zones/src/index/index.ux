@@ -1,6 +1,8 @@
 <template>
-  <div class="page {{pageCls}}">
-    <text class="status">{{status}}</text>
+  <div class="page">
+    <div class="ring {{ringCls}}">
+      <text class="status">{{status}}</text>
+    </div>
     <text class="sub">{{sub}}</text>
     <text class="info">{{info}}</text>
   </div>
@@ -10,31 +12,45 @@
   .page {
     width: 100%;
     height: 100%;
+    background-color: #000000;
     flex-direction: column;
     align-items: center;
     justify-content: center;
   }
-  .page-wait, .page-ok {
-    background-color: #0b3550;
+  .ring {
+    width: 300px;
+    height: 300px;
+    border-radius: 150px;
+    border-width: 14px;
+    border-style: solid;
+    justify-content: center;
+    align-items: center;
   }
-  .page-bad {
-    background-color: #8b1d1d;
+  .ring-wait {
+    border-color: #4d6b7c;
+  }
+  .ring-ok {
+    border-color: #2ecc71;
+  }
+  .ring-bad {
+    border-color: #ff3b30;
+    background-color: rgba(255, 59, 48, 0.18);
   }
   .status {
-    font-size: 52px;
+    font-size: 48px;
     color: #ffffff;
     text-align: center;
   }
   .sub {
-    font-size: 24px;
-    color: #cfe8f7;
-    margin-top: 10px;
+    font-size: 22px;
+    color: #d0d7dc;
+    margin-top: 14px;
     text-align: center;
   }
   .info {
-    font-size: 18px;
-    color: #7fa6c0;
-    margin-top: 16px;
+    font-size: 16px;
+    color: #6b7b86;
+    margin-top: 8px;
     text-align: center;
   }
 </style>
@@ -57,7 +73,7 @@ export default {
     status: 'Ищу GPS…',
     sub: '',
     info: '',
-    pageCls: 'page-wait'
+    ringCls: 'ring-wait'
   },
 
   onInit() {
@@ -130,7 +146,7 @@ export default {
   gpsFail() {
     this.status = 'Нет GPS'
     this.sub = 'Включите геолокацию на часах'
-    this.pageCls = 'page-wait'
+    this.ringCls = 'ring-wait'
   },
 
   onPos(d) {
@@ -142,7 +158,7 @@ export default {
     if (hit.length > 0) {
       this.status = 'НЕ ТУДА!'
       this.sub = hit.map(z => z.name).join(', ')
-      this.pageCls = 'page-bad'
+      this.ringCls = 'ring-bad'
       const now = Date.now()
       const newlyInside = this.inside.length === 0
       if (newlyInside || now - this.lastBuzz > REPEAT_MS) {
@@ -153,7 +169,7 @@ export default {
     } else {
       this.status = 'Всё ок'
       this.sub = this.zones.length > 0 ? 'Зон на карте: ' + this.zones.length : 'Зон пока нет'
-      this.pageCls = 'page-ok'
+      this.ringCls = 'ring-ok'
       this.inside = []
     }
     this.info = lat.toFixed(4) + ', ' + lon.toFixed(4)
