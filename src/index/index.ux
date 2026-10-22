@@ -767,7 +767,7 @@ export default {
     } else {
       this.menuTitle = 'НАСТРОЙКИ'
       this.menuHint = 'Тап — переключить. Датчики есть не на всех часах'
-      this.menuSub = ''
+      this.menuSub = 'Сборка 22.10 без звука'
     }
 
     const list = this.menuList()
