@@ -9,8 +9,7 @@
   "features": [
     { "name": "system.vibrator" },
     { "name": "system.storage" },
-    { "name": "system.sensor" },
-    { "name": "system.audio" }
+    { "name": "system.sensor" }
   ],
   "config": {
     "logLevel": "log",

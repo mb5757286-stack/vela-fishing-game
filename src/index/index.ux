@@ -381,7 +381,6 @@
 import vibrator from '@system.vibrator'
 import storage from '@system.storage'
 import sensor from '@system.sensor'
-import audio from '@system.audio'
 import game from '../common/game.js'
 
 const SAVE_KEY = 'fishing_v2'
@@ -391,21 +390,6 @@ const RECENTER_AT = 1800
 const TICK_MS = 40
 const DOUBLE_TAP_MS = 350
 const SCREENS = ['fish', 'shop', 'map', 'collection', 'settings']
-const VOLUMES = [0, 25, 50, 75, 100]
-
-const MUSIC = {
-  calm: '/common/snd/music_calm.mp3',
-  upbeat: '/common/snd/music_upbeat.mp3'
-}
-const SFX = {
-  cast: '/common/snd/sfx_cast.mp3',
-  bite: '/common/snd/sfx_bite.mp3',
-  hook: '/common/snd/sfx_hook.mp3',
-  win: '/common/snd/sfx_win.mp3',
-  coin: '/common/snd/sfx_coin.mp3',
-  lose: '/common/snd/sfx_lose.mp3',
-  rare: '/common/snd/sfx_rare.mp3'
-}
 
 function clamp(v, a, b) { return v < a ? a : (v > b ? b : v) }
 function onOff(v) { return v ? 'вкл' : 'выкл' }
@@ -460,7 +444,6 @@ export default {
     this.acc = 0
     this.msgTimer = null
     this.sensorOn = false
-    this.track = ''
     this.motion = game.motionNew()
     this.loadSave()
   },
@@ -471,84 +454,22 @@ export default {
       this.timer = setInterval(() => this.loop(), TICK_MS)
     }
     this.startSensor()
-    this.playMusic(this.locMusic())
   },
 
   onHide() {
     this.stopLoop()
     this.stopSensor()
-    this.pauseMusic()
   },
 
   onDestroy() {
     this.stopLoop()
     this.stopSensor()
-    this.pauseMusic()
   },
 
   stopLoop() {
     if (this.timer !== null) {
       clearInterval(this.timer)
       this.timer = null
-    }
-  },
-
-  // ---------- звук ----------
-
-  musicVolume() { return this.save.settings.musicVol / 100 },
-
-  locMusic() { return game.gear(this.g).loc.music },
-
-  playMusic(track) {
-    this.track = track
-    if (this.save.settings.musicVol === 0) {
-      this.pauseMusic()
-      return
-    }
-    try {
-      audio.src = MUSIC[track]
-      audio.loop = true
-      audio.volume = this.musicVolume()
-      audio.play()
-    } catch (err) {
-      console.warn('music failed')
-    }
-  },
-
-  pauseMusic() {
-    try { audio.pause() } catch (err) { /* нет звука — играем без него */ }
-  },
-
-  // Эффект прерывает музыку (один плеер на часах), потом музыка продолжается с того же места
-  playSfx(name) {
-    if (!this.save.settings.sfx || this.save.settings.sfxVol === 0 || !SFX[name]) return
-    let resumeAt = 0
-    try { resumeAt = audio.currentTime || 0 } catch (err) { resumeAt = 0 }
-    try {
-      audio.onended = null
-      audio.loop = false
-      audio.src = SFX[name]
-      audio.volume = this.save.settings.sfxVol / 100   // отдельная громкость эффектов
-      audio.onended = () => {
-        audio.onended = null
-        this.resumeMusic(resumeAt)
-      }
-      audio.play()
-    } catch (err) {
-      console.warn('sfx failed')
-    }
-  },
-
-  resumeMusic(at) {
-    if (!this.track || this.save.settings.musicVol === 0) return
-    try {
-      audio.src = MUSIC[this.track]
-      audio.loop = true
-      audio.volume = this.musicVolume()
-      audio.currentTime = at
-      audio.play()
-    } catch (err) {
-      console.warn('music resume failed')
     }
   },
 
@@ -749,26 +670,12 @@ export default {
 
   toggleSetting(id) {
     const s = this.save.settings
-    if (id === 'testSfx') {
-      if (!s.sfx) {
-        this.msg = 'Эффекты выключены в настройках'
-      } else {
-        this.playSfx('coin')
-        this.msg = 'Звук отправлен на часы'
-      }
-      return
-    }
     if (id === 'motion' && this.sensorBad) {
       this.msg = 'Датчик недоступен на этих часах'
       return
     }
     if (id === 'sens') {
       s.sens = (s.sens + 1) % game.SENS.length
-    } else if (id === 'sfxVol') {
-      s.sfxVol = VOLUMES[(VOLUMES.indexOf(s.sfxVol) + 1) % VOLUMES.length]
-    } else if (id === 'musicVol') {
-      s.musicVol = VOLUMES[(VOLUMES.indexOf(s.musicVol) + 1) % VOLUMES.length]
-      this.playMusic(this.track || this.locMusic())
     } else {
       s[id] = !s[id]
     }
@@ -801,10 +708,6 @@ export default {
         { cat: 'set', id: 'hookFlick', label: 'Подсечка рывком: ' + onOff(s.hookFlick) },
         { cat: 'set', id: 'tilt', label: 'Балансир (наклон): ' + onOff(s.tilt) },
         { cat: 'set', id: 'sens', label: 'Коронка: ' + game.SENS_NAMES[s.sens] },
-        { cat: 'set', id: 'musicVol', label: 'Громкость музыки: ' + (s.musicVol === 0 ? 'выкл' : s.musicVol + '%') },
-        { cat: 'set', id: 'sfxVol', label: 'Громкость эффектов: ' + (s.sfxVol === 0 ? 'выкл' : s.sfxVol + '%') },
-        { cat: 'set', id: 'sfx', label: 'Звуковые эффекты: ' + onOff(s.sfx) },
-        { cat: 'set', id: 'testSfx', label: 'Проверить звук' },
         { cat: 'set', id: 'vib', label: 'Вибрация: ' + onOff(s.vib) }
       ]
     }
@@ -895,7 +798,6 @@ export default {
     const loc = game.gear(this.g).loc
     this.bgSrc = '/common/img/bg_' + loc.id + '.png'
     this.locName = loc.name
-    if (loc.music !== this.track) this.playMusic(loc.music)
   },
 
   // ---------- игровой цикл ----------
@@ -919,16 +821,15 @@ export default {
 
     while (g.events.length) {
       const ev = g.events.shift()
-      if (ev === 'bite') { this.buzz('long'); this.playSfx('bite') }
-      else if (ev === 'hook') { this.buzz('short'); this.playSfx('hook') }
-      else if (ev === 'lose') { this.buzz('short'); this.playSfx('lose') }
-      else if (ev === 'win') { this.buzz('long'); this.playSfx('win') }
-      else if (ev === 'rare') { this.buzz('long'); this.playSfx('rare') }
+      if (ev === 'bite') { this.buzz('long') }
+      else if (ev === 'hook') { this.buzz('short') }
+      else if (ev === 'lose') { this.buzz('short') }
+      else if (ev === 'win') { this.buzz('long') }
+      else if (ev === 'rare') { this.buzz('long') }
     }
 
     if (this.state !== g.state) {
-      if (g.state === 'casting') this.playSfx('cast')
-      this.state = g.state
+        this.state = g.state
       this.updateHints()
     }
     this.coinsText = 'Монеты: ' + this.save.coins
