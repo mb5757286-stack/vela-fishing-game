@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -26,7 +26,25 @@ jobs:
         run: npm install
 
       - name: Сборка .rpk
-        run: npx aiot build
+        run: |
+          set +e
+          npx aiot build 2>&1 | tee build.log
+          echo "exit-code: ${PIPESTATUS[0]}" | tee -a build.log
+          exit 0
+
+      - name: Лог сборки в ветку ci-log
+        if: always()
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          git config user.name "ci"
+          git config user.email "ci@users.noreply.github.com"
+          git checkout --orphan ci-log-tmp
+          git rm -rf -q . || true
+          mkdir -p ci
+          cp zones/build.log ci/zones-build.log
+          git add ci/zones-build.log
+          git commit -q -m "zones build log"
+          git push -f origin HEAD:refs/heads/ci-log
 
       - name: Найти .rpk
         run: |
