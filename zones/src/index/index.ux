@@ -1,9 +1,17 @@
 <template>
   <div class="page">
+    <text class="caption">ЗАПРЕТКА</text>
+
     <div class="ring {{ringCls}}">
       <text class="status">{{status}}</text>
+      <text class="sub">{{sub}}</text>
     </div>
-    <text class="sub">{{sub}}</text>
+
+    <div class="card">
+      <text class="card-label">Зоны</text>
+      <text class="card-value">{{zonesText}}</text>
+    </div>
+
     <text class="info">{{info}}</text>
   </div>
 </template>
@@ -16,41 +24,72 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+  .caption {
+    font-size: 16px;
+    color: #8e8e93;
+    letter-spacing: 3px;
   }
   .ring {
-    width: 300px;
-    height: 300px;
-    border-radius: 150px;
-    border-width: 14px;
+    width: 240px;
+    height: 240px;
+    margin-top: 12px;
+    border-radius: 120px;
+    border-width: 10px;
     border-style: solid;
+    background-color: #1c1c1e;
     justify-content: center;
     align-items: center;
   }
   .ring-wait {
-    border-color: #4d6b7c;
+    border-color: #3e8bff;
   }
   .ring-ok {
-    border-color: #2ecc71;
+    border-color: #34c759;
   }
   .ring-bad {
-    border-color: #ff3b30;
-    background-color: rgba(255, 59, 48, 0.18);
+    border-color: #ff453a;
+    background-color: #3a1716;
   }
   .status {
-    font-size: 48px;
+    font-size: 40px;
+    font-weight: bold;
     color: #ffffff;
     text-align: center;
   }
   .sub {
-    font-size: 22px;
-    color: #d0d7dc;
-    margin-top: 14px;
+    font-size: 18px;
+    color: #d1d1d6;
+    margin-top: 6px;
     text-align: center;
   }
+  .card {
+    width: 100%;
+    margin-top: 16px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    padding-left: 18px;
+    padding-right: 18px;
+    border-radius: 24px;
+    background-color: #1c1c1e;
+    flex-direction: column;
+  }
+  .card-label {
+    font-size: 15px;
+    color: #8e8e93;
+  }
+  .card-value {
+    font-size: 20px;
+    font-weight: bold;
+    color: #ffffff;
+    margin-top: 2px;
+  }
   .info {
-    font-size: 16px;
-    color: #6b7b86;
-    margin-top: 8px;
+    font-size: 15px;
+    color: #636366;
+    margin-top: 10px;
     text-align: center;
   }
 </style>
@@ -73,7 +112,8 @@ export default {
     status: 'Ищу GPS…',
     sub: '',
     info: '',
-    ringCls: 'ring-wait'
+    ringCls: 'ring-wait',
+    zonesText: 'Загрузка…'
   },
 
   onInit() {
@@ -158,6 +198,7 @@ export default {
     if (hit.length > 0) {
       this.status = 'НЕ ТУДА!'
       this.sub = hit.map(z => z.name).join(', ')
+      this.zonesText = this.zones.length + ' шт. · внутри'
       this.ringCls = 'ring-bad'
       const now = Date.now()
       const newlyInside = this.inside.length === 0
@@ -168,7 +209,8 @@ export default {
       this.inside = hit.map(z => z.name)
     } else {
       this.status = 'Всё ок'
-      this.sub = this.zones.length > 0 ? 'Зон на карте: ' + this.zones.length : 'Зон пока нет'
+      this.sub = this.zones.length > 0 ? 'Зон на карте' : 'Зон пока нет'
+      this.zonesText = this.zones.length + ' шт.'
       this.ringCls = 'ring-ok'
       this.inside = []
     }
