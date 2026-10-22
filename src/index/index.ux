@@ -493,7 +493,7 @@ export default {
       audio.onended = null
       audio.loop = false
       audio.src = SFX[name]
-      audio.volume = Math.min(0.6, 0.3 + this.musicVolume() * 0.3)
+      audio.volume = 0.6   // эффекты не зависят от ползунка музыки
       audio.onended = () => {
         audio.onended = null
         this.resumeMusic(resumeAt)
@@ -704,6 +704,15 @@ export default {
 
   toggleSetting(id) {
     const s = this.save.settings
+    if (id === 'testSfx') {
+      if (!s.sfx) {
+        this.msg = 'Эффекты выключены в настройках'
+      } else {
+        this.playSfx('coin')
+        this.msg = 'Звук отправлен на часы'
+      }
+      return
+    }
     if (id === 'motion' && this.sensorBad) {
       this.msg = 'Датчик недоступен на этих часах'
       return
@@ -747,6 +756,7 @@ export default {
         { cat: 'set', id: 'sens', label: 'Коронка: ' + game.SENS_NAMES[s.sens] },
         { cat: 'set', id: 'musicVol', label: 'Громкость музыки: ' + (s.musicVol === 0 ? 'выкл' : s.musicVol + '%') },
         { cat: 'set', id: 'sfx', label: 'Звуковые эффекты: ' + onOff(s.sfx) },
+        { cat: 'set', id: 'testSfx', label: 'Проверить звук' },
         { cat: 'set', id: 'vib', label: 'Вибрация: ' + onOff(s.vib) }
       ]
     }
