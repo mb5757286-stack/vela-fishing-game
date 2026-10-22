@@ -16,16 +16,25 @@ var FISH = {
   trout:    { name: 'Форель',       min: 0.3,  max: 4.0,  price: 14, speed: 150, zone: 84,  burst: true },
   goldcarp: { name: 'Золотой карп',  min: 1.5,  max: 9.0,  price: 45, speed: 185, zone: 66,  burst: true, rare: true },
   sturgeon: { name: 'Белуга',        min: 20,   max: 90,   price: 70, speed: 210, zone: 60,  burst: true, rare: true },
+  eel:      { name: 'Угорь',         min: 0.2,  max: 2.5,  price: 11, speed: 120, zone: 90 },
+  ruff:     { name: 'Ёрш',           min: 0.02, max: 0.2,  price: 3,  speed: 60,  zone: 124 },
+  chub:     { name: 'Язь',           min: 0.3,  max: 3.0,  price: 9,  speed: 100, zone: 98 },
+  tench:    { name: 'Линь',          min: 0.3,  max: 3.5,  price: 11, speed: 95,  zone: 100 },
+  asp:      { name: 'Жерех',         min: 0.5,  max: 5.0,  price: 12, speed: 150, zone: 88 },
+  salmon:   { name: 'Лосось',        min: 2,    max: 14,   price: 22, speed: 190, zone: 72, burst: true },
+  mullet:   { name: 'Кефаль',        min: 0.3,  max: 3.0,  price: 10, speed: 120, zone: 96 },
+  ghostpike:{ name: 'Призрачная щука', min: 3, max: 25,   price: 90, speed: 230, zone: 58, burst: true, rare: true },
   boot:     { name: 'Старый сапог',  min: 0.3,  max: 0.6,  price: 0,  speed: 0,   zone: 0, junk: true }
 }
 
 var LOCATIONS = [
-  { id: 'pond',     name: 'Пруд',         price: 0,    music: 'calm',   fish: { bleak: 30, roach: 30, crucian: 20, perch: 8, goldcarp: 1, boot: 3 } },
-  { id: 'river',    name: 'Река',         price: 150,  music: 'upbeat', fish: { roach: 14, perch: 16, pike: 12, catfish: 5, bleak: 12, boot: 3 } },
-  { id: 'lake',     name: 'Озеро',        price: 400,  music: 'calm',   fish: { bream: 16, carp: 10, perch: 12, pike: 10, zander: 8, goldcarp: 2 } },
+  { id: 'pond',     name: 'Пруд',         price: 0,    music: 'calm',   fish: { bleak: 30, roach: 30, crucian: 20, perch: 8, ruff: 10, goldcarp: 1, boot: 3 } },
+  { id: 'river',    name: 'Река',         price: 150,  music: 'upbeat', fish: { roach: 14, perch: 16, pike: 12, catfish: 5, bleak: 12, chub: 10, asp: 6, eel: 4, boot: 3 } },
+  { id: 'lake',     name: 'Озеро',        price: 400,  music: 'calm',   fish: { bream: 16, carp: 10, perch: 12, pike: 10, zander: 8, tench: 10, goldcarp: 2 } },
   { id: 'ice',      name: 'Зимнее озеро', price: 600,  music: 'calm',   fish: { perch: 20, pike: 12, zander: 10, roach: 12, goldcarp: 1, boot: 2 } },
-  { id: 'sea',      name: 'Море',         price: 1000, music: 'upbeat', fish: { flounder: 14, horse: 18, seaperch: 12, zander: 4, sturgeon: 1 } },
-  { id: 'mountain', name: 'Горный ручей', price: 1500, music: 'upbeat', fish: { trout: 30, roach: 5, bleak: 6 } }
+  { id: 'sea',      name: 'Море',         price: 1000, music: 'upbeat', fish: { flounder: 14, horse: 18, seaperch: 12, mullet: 10, eel: 3, zander: 4, sturgeon: 1 } },
+  { id: 'mountain', name: 'Горный ручей', price: 1500, music: 'upbeat', fish: { trout: 30, salmon: 6, roach: 5, bleak: 6 } },
+  { id: 'secret', name: 'Тайное озеро', price: 0, unlock: 12, music: 'upbeat', fish: { ghostpike: 4, tench: 6, asp: 5, eel: 4, chub: 4, ruff: 3 } }
 ]
 
 // reach — насколько дальше забрасывает (и крупнее рыба), lineMax — кг, с которых леска перегружена
@@ -131,6 +140,9 @@ function buy(save, cat, id) {
   if (save.owned[cat].indexOf(item.id) >= 0) {
     save.eq[cat] = item.id
     return 'Надето: ' + item.name
+  }
+  if (item.unlock && save.stats.seen.length < item.unlock) {
+    return 'Откроется после ' + item.unlock + ' видов в коллекции (сейчас ' + save.stats.seen.length + ')'
   }
   if (save.coins < item.price) return 'Не хватает монет: нужно ' + item.price
   save.coins -= item.price

@@ -390,7 +390,7 @@ const CENTER = 3000
 const RECENTER_AT = 1800
 const TICK_MS = 40
 const DOUBLE_TAP_MS = 350
-const SCREENS = ['fish', 'shop', 'map', 'settings']
+const SCREENS = ['fish', 'shop', 'map', 'collection', 'settings']
 const VOLUMES = [0, 25, 50, 75, 100]
 
 const MUSIC = {
@@ -697,7 +697,7 @@ export default {
 
   setScreen(s) {
     this.screen = s
-    const names = { fish: 'РЫБАЛКА', shop: 'МАГАЗИН', map: 'МЕСТА', settings: 'НАСТРОЙКИ' }
+    const names = { fish: 'РЫБАЛКА', shop: 'МАГАЗИН', map: 'МЕСТА', collection: 'КОЛЛЕКЦИЯ', settings: 'НАСТРОЙКИ' }
     this.navName = names[s]
     this.cursor = 0
     this.acc = 0
@@ -735,6 +735,7 @@ export default {
     const list = this.menuList()
     const it = list[this.cursor]
     if (!it) return
+    if (it.cat === 'col') return
     if (it.cat === 'set') {
       this.toggleSetting(it.id)
     } else {
@@ -804,14 +805,33 @@ export default {
         { cat: 'set', id: 'vib', label: 'Вибрация: ' + onOff(s.vib) }
       ]
     }
-    return game.LOCATIONS.map(loc => ({
-      cat: 'loc',
-      id: loc.id,
-      name: loc.name,
-      price: loc.price,
-      owned: this.save.owned.loc.indexOf(loc.id) >= 0,
-      equipped: this.save.eq.loc === loc.id
-    }))
+    if (this.screen === 'collection') {
+      const seen = this.save.stats.seen
+      return Object.keys(game.FISH)
+        .filter(id => !game.FISH[id].junk)
+        .map(id => {
+          const f = game.FISH[id]
+          const got = seen.indexOf(id) >= 0
+          const label = got
+            ? '✓ ' + f.name + (f.rare ? ' ★' : '')
+            : '? ???'
+          return { cat: 'col', id: id, label: label }
+        })
+    }
+    const n = this.save.stats.seen.length
+    return game.LOCATIONS.map(loc => {
+      const locked = !!loc.unlock && n < loc.unlock
+      return {
+        cat: 'loc',
+        id: loc.id,
+        name: locked ? '???' : loc.name,
+        price: loc.price,
+        locked: locked,
+        unlock: loc.unlock,
+        owned: this.save.owned.loc.indexOf(loc.id) >= 0,
+        equipped: this.save.eq.loc === loc.id
+      }
+    })
   },
 
   collectionText() {
@@ -825,6 +845,10 @@ export default {
       this.menuTitle = 'МАГАЗИН'
       this.menuHint = 'Коронка — выбор, тап — купить или надеть'
       this.menuSub = this.coinsText
+    } else if (this.screen === 'collection') {
+      this.menuTitle = 'КОЛЛЕКЦИЯ'
+      this.menuHint = 'Коронка — листать'
+      this.menuSub = this.collectionText()
     } else if (this.screen === 'map') {
       this.menuTitle = 'МЕСТА'
       this.menuHint = 'Коронка — выбор, тап — купить или перейти'
@@ -843,7 +867,7 @@ export default {
       let text = it.label
       if (!text) {
         const mark = it.owned ? (it.equipped ? '● ' : '○ ') : ''
-        const tail = it.owned ? (it.equipped ? 'надето' : 'есть') : (it.price + ' монет')
+        const tail = it.locked ? 'закрыто' : (it.owned ? (it.equipped ? 'надето' : 'есть') : (it.price + ' монет'))
         text = mark + it.name + ' — ' + tail
       }
       rows.push({ text: text, cls: 'row' + (i === this.cursor ? ' row-sel' : '') })
@@ -856,7 +880,11 @@ export default {
   // Что сделает тап по выделенной строке
   actionHint(it) {
     if (it.cat === 'set') return 'Тап — переключить'
-    if (it.cat === 'loc') return it.owned ? 'Тап — перейти' : 'Тап — купить за ' + it.price
+    if (it.cat === 'col') return 'Просто смотрим'
+    if (it.cat === 'loc') {
+      if (it.locked) return 'Закрыто: после ' + it.unlock + ' видов'
+      return it.owned ? 'Тап — перейти' : 'Тап — купить за ' + it.price
+    }
     return it.owned ? (it.equipped ? 'Уже надето' : 'Тап — надеть') : 'Тап — купить за ' + it.price
   },
 

@@ -205,6 +205,28 @@ FISH.update({
 })
 
 
+FISH.update({
+    'eel': dict(length=.94, height=.14, peak=.38, back=(60, 70, 40), belly=(215, 200, 110),
+                fin=(50, 60, 35), dorsal=(.4, .5, .2), anal=(.6, .5, .2), eye_r=.12),
+    'ruff': dict(length=.8, height=.42, peak=.44, back=(110, 120, 80), belly=(220, 210, 160),
+                 fin=(190, 160, 60), dorsal=(.42, .24, .5), anal=(.6, .2, .45), eye_r=.17, scales=(80, 80, 40)),
+    'chub': dict(length=.9, height=.4, peak=.42, back=(90, 110, 100), belly=(225, 225, 205),
+                 fin=(160, 150, 130), dorsal=(.44, .22, .5), anal=(.6, .2, .45), eye_r=.15, lateral=True),
+    'tench': dict(length=.84, height=.5, peak=.44, back=(60, 85, 55), belly=(170, 170, 110),
+                  fin=(70, 95, 60), dorsal=(.44, .24, .45), anal=(.58, .22, .4), eye_r=.13, scales=(40, 60, 35)),
+    'asp': dict(length=.9, height=.3, peak=.45, back=(120, 140, 110), belly=(235, 235, 220),
+                fin=(230, 140, 50), dorsal=(.42, .22, .5), anal=(.6, .18, .45), eye_r=.16, lateral=True),
+    'salmon': dict(length=.92, height=.32, peak=.44, back=(60, 80, 110), belly=(240, 235, 225),
+                   fin=(200, 100, 80), dorsal=(.44, .2, .5), anal=(.6, .18, .45),
+                   spots=((30, 30, 40), 18, .04), eye_r=.15, lateral=True),
+    'mullet': dict(length=.88, height=.3, peak=.42, back=(110, 120, 125), belly=(235, 240, 240),
+                   fin=(180, 190, 195), dorsal=(.43, .2, .5), anal=(.6, .18, .45), eye_r=.16, lateral=True),
+    'ghostpike': dict(length=.94, height=.24, peak=.58, back=(120, 150, 230), belly=(230, 235, 255),
+                      fin=(170, 190, 255), dorsal=(.7, .2, .5), anal=(.72, .14, .35),
+                      spots=((200, 220, 255), 40, .04), lateral=True, eye_r=.16),
+})
+
+
 def draw_boot():
     w, h = W * S, H * S
     im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
@@ -234,8 +256,8 @@ def background(name, sky_top, sky_bot, water_top, water_bot, extra):
             c = mix(water_top, water_bot, (y - horizon) / (s - horizon))
         d.line([(0, y), (s, y)], fill=c)
     extra(d, s, horizon)
-    # затемняем, чтобы белый текст читался
-    im = Image.blend(im, Image.new('RGB', (s, s), (4, 12, 20)), .35)
+    # лёгкое затемнение: фон виден, текст читается
+    im = Image.blend(im, Image.new('RGB', (s, s), (4, 12, 20)), .2)
     im.save(os.path.join(OUT, 'bg_%s.png' % name), optimize=True)
 
 
@@ -300,12 +322,25 @@ def mountain_extra(d, s, hz):
         d.line([(60 + i * 10, y), (200 + i * 14, y + 6)], fill=(210, 235, 245), width=3)
 
 
+def secret_extra(d, s, hz):
+    for i in range(30):                                                   # звёзды
+        x, y = (i * 137) % s, (i * 53) % (hz - 20)
+        d.point((x, y), fill=(230, 220, 255))
+    d.ellipse([320, 40, 370, 90], fill=(235, 225, 255))                  # луна
+    d.polygon([(0, hz), (80, hz - 90), (170, hz - 20), (260, hz - 120), (s, hz - 30), (s, hz), (0, hz)],
+              fill=(40, 30, 70))                                          # скалы у тайного озера
+    for i in range(10):                                                   # свечение на воде
+        y = hz + 20 + i * 24
+        d.line([(100 + i * 6, y), (330 - i * 6, y)], fill=(150, 110, 220), width=2)
+
+
 def make_backgrounds():
     background('ice', (150, 185, 210), (225, 238, 248), (120, 175, 200), (60, 120, 150), ice_extra)
     background('mountain', (140, 180, 220), (220, 232, 242), (60, 110, 140), (30, 70, 100), mountain_extra)
     background('pond', (170, 210, 235), (210, 235, 245), (50, 120, 130), (30, 90, 110), pond_extra)
     background('river', (160, 200, 220), (200, 225, 235), (40, 100, 140), (25, 70, 100), river_extra)
     background('lake', (150, 190, 220), (215, 232, 240), (50, 110, 140), (25, 75, 105), lake_extra)
+    background('secret', (50, 30, 90), (120, 80, 170), (40, 50, 110), (20, 25, 60), secret_extra)
     background('sea', (120, 180, 230), (210, 235, 250), (30, 110, 170), (15, 60, 110), sea_extra)
 
 

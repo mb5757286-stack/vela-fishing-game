@@ -203,4 +203,20 @@ console.log('\n--- Редкие рыбы, серия, коллекция ---')
 }
 console.log('редкие рыбы, серия, коллекция — ок')
 
+console.log('\n--- Новые виды, тайное озеро, коллекция ---')
+{
+  const secret = G.LOCATIONS.find(l => l.id === 'secret')
+  assert(secret && secret.unlock === 12, 'тайное озеро открывается после 12 видов')
+  assert(Object.keys(G.FISH).filter(id => !G.FISH[id].junk).length >= 20, 'видов рыбы должно быть 20+')
+  assert(G.FISH.ghostpike.rare, 'призрачная щука — редкая')
+  const onlySecret = G.LOCATIONS.filter(l => l.id !== 'secret' && l.fish.ghostpike)
+  assert.strictEqual(onlySecret.length, 0, 'призрачная щука только в тайном озере')
+  const s0 = G.defaultSave(); s0.coins = 99999
+  assert(G.buy(s0, 'loc', 'secret').indexOf('Откроется') === 0, 'без видов тайное озеро закрыто')
+  s0.stats.seen = Object.keys(G.FISH).slice(0, 12)
+  assert(G.buy(s0, 'loc', 'secret').indexOf('Куплено') === 0 || G.buy(s0, 'loc', 'secret').indexOf('Надето') === 0, 'после 12 видов открывается')
+  for (const loc of G.LOCATIONS) for (const id of Object.keys(loc.fish)) assert(G.FISH[id], loc.id + ': нет рыбы ' + id)
+}
+console.log('новые виды, тайное озеро — ок')
+
 console.log('\nВсе проверки пройдены')
