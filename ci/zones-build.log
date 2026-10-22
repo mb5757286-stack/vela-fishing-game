@@ -1,0 +1,23 @@
+node:fs:573
+  return binding.open(
+                 ^
+
+Error: /home/runner/work/vela-fishing-game/vela-fishing-game/zones/src/manifest.json: ENOENT: no such file or directory, open '/home/runner/work/vela-fishing-game/vela-fishing-game/zones/src/manifest.json'
+    at Object.openSync (node:fs:573:18)
+    at Object.readFileSync (node:fs:452:35)
+    at Object.readFileSync (/home/runner/work/vela-fishing-game/vela-fishing-game/zones/node_modules/jsonfile/index.js:50:22)
+    at Object.getProjectType (/home/runner/work/vela-fishing-game/vela-fishing-game/zones/node_modules/@aiot-toolkit/shared-utils/lib/enum/ProjectType.js:23:41)
+    at findBuilder (/home/runner/work/vela-fishing-game/vela-fishing-game/zones/node_modules/aiot-toolkit/lib/bin.js:45:48)
+    at build (/home/runner/work/vela-fishing-game/vela-fishing-game/zones/node_modules/aiot-toolkit/lib/bin.js:49:19)
+    at main (/home/runner/work/vela-fishing-game/vela-fishing-game/zones/node_modules/aiot-toolkit/lib/bin.js:83:19)
+    at Object.<anonymous> (/home/runner/work/vela-fishing-game/vela-fishing-game/zones/node_modules/aiot-toolkit/lib/bin.js:193:1)
+    at Module._compile (node:internal/modules/cjs/loader:1521:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/runner/work/vela-fishing-game/vela-fishing-game/zones/src/manifest.json'
+}
+
+Node.js v20.20.2
+exit-code: 1
