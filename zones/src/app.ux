@@ -1,0 +1,10 @@
+<script>
+export default {
+  onCreate() {
+    console.info('Запретка: запуск')
+  },
+  onDestroy() {
+    console.info('Запретка: выход')
+  }
+}
+</script>

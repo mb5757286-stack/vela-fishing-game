@@ -1,0 +1,134 @@
+<template>
+  <div class="page {{pageCls}}">
+    <text class="status">{{status}}</text>
+    <text class="sub">{{sub}}</text>
+    <text class="info">{{info}}</text>
+  </div>
+</template>
+
+<style>
+  .page {
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .page-wait, .page-ok {
+    background-color: #0b3550;
+  }
+  .page-bad {
+    background-color: #8b1d1d;
+  }
+  .status {
+    font-size: 52px;
+    color: #ffffff;
+    text-align: center;
+  }
+  .sub {
+    font-size: 24px;
+    color: #cfe8f7;
+    margin-top: 10px;
+    text-align: center;
+  }
+  .info {
+    font-size: 18px;
+    color: #7fa6c0;
+    margin-top: 16px;
+    text-align: center;
+  }
+</style>
+
+<script>
+import geolocation from '@system.geolocation'
+import vibrator from '@system.vibrator'
+import ZONES from '../common/zones.js'
+import geo from '../common/geo.js'
+
+const REPEAT_MS = 15000   // пока внутри зоны, вибрируем раз в 15 секунд
+
+export default {
+  private: {
+    status: 'Ищу GPS…',
+    sub: '',
+    info: '',
+    pageCls: 'page-wait'
+  },
+
+  onInit() {
+    this.inside = []
+    this.lastBuzz = 0
+  },
+
+  onShow() {
+    this.startGps()
+  },
+
+  onHide() {
+    this.stopGps()
+  },
+
+  onDestroy() {
+    this.stopGps()
+  },
+
+  startGps() {
+    try {
+      geolocation.subscribe({
+        success: (d) => this.onPos(d),
+        fail: () => this.gpsFail()
+      })
+    } catch (err) {
+      this.gpsFail()
+    }
+  },
+
+  stopGps() {
+    try {
+      geolocation.unsubscribe()
+    } catch (err) {
+      console.warn('gps stop failed')
+    }
+  },
+
+  gpsFail() {
+    this.status = 'Нет GPS'
+    this.sub = 'Включите геолокацию на часах'
+    this.pageCls = 'page-wait'
+  },
+
+  onPos(d) {
+    const lat = d && d.latitude
+    const lon = d && d.longitude
+    if (typeof lat !== 'number' || typeof lon !== 'number' || isNaN(lat) || isNaN(lon)) return
+
+    const hit = ZONES.filter(z => geo.inZone(lat, lon, z))
+    if (hit.length > 0) {
+      this.status = 'НЕ ТУДА!'
+      this.sub = hit.map(z => z.name).join(', ')
+      this.pageCls = 'page-bad'
+      const now = Date.now()
+      const newlyInside = this.inside.length === 0
+      if (newlyInside || now - this.lastBuzz > REPEAT_MS) {
+        this.buzz()
+        this.lastBuzz = now
+      }
+      this.inside = hit.map(z => z.name)
+    } else {
+      this.status = 'Всё ок'
+      this.sub = ZONES.length > 0 ? 'Зон на карте: ' + ZONES.length : 'Зон пока нет'
+      this.pageCls = 'page-ok'
+      this.inside = []
+    }
+    this.info = lat.toFixed(4) + ', ' + lon.toFixed(4)
+  },
+
+  buzz() {
+    try {
+      vibrator.vibrate({ mode: 'long' })
+    } catch (err) {
+      console.warn('vibrate failed')
+    }
+  }
+}
+</script>

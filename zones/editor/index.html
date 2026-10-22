@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Запретка: редактор зон</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+  <style>
+    :root { --bg: #f4f7fa; --fg: #14202b; --card: #ffffff; --accent: #2b8fc4; --danger: #c0392b; }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) { --bg: #0e1620; --fg: #e6eef5; --card: #17222e; --accent: #4fb3e8; --danger: #e05a4b; }
+    }
+    :root[data-theme="dark"] { --bg: #0e1620; --fg: #e6eef5; --card: #17222e; --accent: #4fb3e8; --danger: #e05a4b; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; }
+    header { padding: 10px 14px; font-weight: 600; }
+    #map { height: 55vh; width: 100%; }
+    .panel { padding: 12px 14px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+    button { font: inherit; padding: 10px 14px; border-radius: 10px; border: 0; background: var(--accent); color: #fff; }
+    button.secondary { background: var(--card); color: var(--fg); border: 1px solid var(--accent); }
+    button.danger { background: var(--danger); }
+    input { font: inherit; padding: 10px; border-radius: 10px; border: 1px solid var(--accent); width: 100%; background: var(--card); color: var(--fg); }
+    .hint { font-size: 14px; opacity: .8; margin: 6px 0; }
+    .zone { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: var(--card); border-radius: 10px; margin-bottom: 6px; }
+    textarea { width: 100%; height: 120px; font: 13px monospace; border-radius: 10px; padding: 8px; background: var(--card); color: var(--fg); border: 1px solid var(--accent); }
+  </style>
+</head>
+<body>
+  <header>Запретка — редактор зон</header>
+  <div id="map"></div>
+  <div class="panel">
+    <input id="name" placeholder="Название зоны, например «Завод»">
+    <div class="row" style="margin-top:8px">
+      <button id="modePoly">Многоугольник</button>
+      <button id="modeCircle" class="secondary">Круг</button>
+      <button id="finish" class="secondary">Готово</button>
+      <button id="cancel" class="secondary">Отмена</button>
+    </div>
+    <div class="hint" id="help">Выберите режим. Многоугольник: ставьте точки, потом «Готово». Круг: тап в центр, тап по краю.</div>
+    <div id="list"></div>
+    <div class="row">
+      <button id="export">Сформировать zones.js</button>
+    </div>
+    <div class="hint">Скопируйте текст в файл zones/src/common/zones.js в репозитории и отправьте (commit + push). Часы соберут приложение с новыми зонами.</div>
+    <textarea id="out" readonly></textarea>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+  <script>
+    var map = L.map('map').setView([55.75, 37.62], 11)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map)
+
+    var KEY = 'zones_editor_v1'
+    var zones = []
+    var mode = 'poly'
+    var tmp = []          // точки текущей фигуры
+    var tmpLayer = L.layerGroup().addTo(map)
+    var layers = L.layerGroup().addTo(map)
+
+    try { zones = JSON.parse(localStorage.getItem(KEY) || '[]') } catch (e) { zones = [] }
+
+    function save() {
+      try { localStorage.setItem(KEY, JSON.stringify(zones)) } catch (e) { /* без хранилища — просто не сохраним */ }
+    }
+
+    function setMode(m) {
+      mode = m
+      tmp = []
+      tmpLayer.clearLayers()
+      document.getElementById('modePoly').className = m === 'poly' ? '' : 'secondary'
+      document.getElementById('modeCircle').className = m === 'circle' ? '' : 'secondary'
+      document.getElementById('help').textContent = m === 'poly'
+        ? 'Ставьте точки по контуру, потом «Готово» (минимум 3 точки).'
+        : 'Тап в центр зоны, потом тап по краю — задаст радиус.'
+    }
+
+    function drawAll() {
+      layers.clearLayers()
+      zones.forEach(function (z, i) {
+        var l = z.type === 'circle'
+          ? L.circle(z.c, { radius: z.r, color: '#c0392b', fillOpacity: .25 })
+          : L.polygon(z.pts, { color: '#c0392b', fillOpacity: .25 })
+        l.bindTooltip(z.name || ('Зона ' + (i + 1)))
+        l.addTo(layers)
+      })
+      renderList()
+    }
+
+    function renderList() {
+      var box = document.getElementById('list')
+      box.innerHTML = ''
+      if (!zones.length) {
+        box.innerHTML = '<div class="hint">Зон пока нет.</div>'
+        return
+      }
+      zones.forEach(function (z, i) {
+        var row = document.createElement('div')
+        row.className = 'zone'
+        var label = document.createElement('span')
+        label.textContent = (z.name || 'Зона ' + (i + 1)) + (z.type === 'circle' ? ' (круг)' : ' (контур)')
+        var del = document.createElement('button')
+        del.className = 'danger'
+        del.textContent = 'Удалить'
+        del.onclick = function () {
+          zones.splice(i, 1)
+          save()
+          drawAll()
+        }
+        row.appendChild(label)
+        row.appendChild(del)
+        box.appendChild(row)
+      })
+    }
+
+    function addZone(z) {
+      z.name = (document.getElementById('name').value || '').trim() || ('Зона ' + (zones.length + 1))
+      zones.push(z)
+      save()
+      drawAll()
+      tmp = []
+      tmpLayer.clearLayers()
+    }
+
+    map.on('click', function (e) {
+      var p = [round(e.latlng.lat), round(e.latlng.lng)]
+      if (mode === 'poly') {
+        tmp.push(p)
+        tmpLayer.clearLayers()
+        L.polyline(tmp, { color: '#2b8fc4' }).addTo(tmpLayer)
+        tmp.forEach(function (q) { L.circleMarker(q, { radius: 4, color: '#2b8fc4' }).addTo(tmpLayer) })
+      } else {
+        if (!tmp.length) {
+          tmp = [p]
+          L.circleMarker(p, { radius: 5, color: '#2b8fc4' }).addTo(tmpLayer)
+          return
+        }
+        var r = Math.round(map.distance(tmp[0], p))
+        if (r < 5) return
+        addZone({ type: 'circle', c: tmp[0], r: r })
+      }
+    })
+
+    function round(v) { return Math.round(v * 1e6) / 1e6 }
+
+    document.getElementById('modePoly').onclick = function () { setMode('poly') }
+    document.getElementById('modeCircle').onclick = function () { setMode('circle') }
+    document.getElementById('finish').onclick = function () {
+      if (mode !== 'poly') return
+      if (tmp.length < 3) { document.getElementById('help').textContent = 'Нужно минимум 3 точки.'; return }
+      addZone({ type: 'poly', pts: tmp.slice() })
+    }
+    document.getElementById('cancel').onclick = function () { setMode(mode) }
+
+    document.getElementById('export').onclick = function () {
+      var text = '// Сюда редактор зон (zones/editor/index.html) сохраняет список зон.\n' +
+        'export default ' + JSON.stringify(zones, null, 2) + '\n'
+      document.getElementById('out').value = text
+      try {
+        var blob = new Blob([text], { type: 'text/javascript' })
+        var a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = 'zones.js'
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+      } catch (e) { /* скачивание недоступно — текст в поле */ }
+    }
+
+    setMode('poly')
+    drawAll()
+  </script>
+</body>
+</html>

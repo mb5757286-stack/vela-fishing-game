@@ -1,0 +1,11 @@
+{
+  "name": "zones",
+  "version": "1.0.0",
+  "description": "Запретные зоны GPS для Redmi Watch 5",
+  "scripts": {
+    "build": "aiot build"
+  },
+  "devDependencies": {
+    "aiot-toolkit": "latest"
+  }
+}
