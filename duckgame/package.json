@@ -1,0 +1,12 @@
+{
+  "name": "duckgame",
+  "version": "1.0.0",
+  "description": "Утиная ферма для Redmi Watch 5 (Xiaomi Vela JS) — кормление, тренировки, забеги, локации",
+  "scripts": {
+    "build": "aiot build",
+    "test": "node test/sim.js"
+  },
+  "devDependencies": {
+    "aiot-toolkit": "latest"
+  }
+}

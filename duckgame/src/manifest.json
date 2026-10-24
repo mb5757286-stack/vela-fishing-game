@@ -1,6 +1,6 @@
 {
-  "package": "com.mxga.duckrace",
-  "name": "Утиные гонки",
+  "package": "com.mxga.duckgame",
+  "name": "Утиная ферма",
   "icon": "/common/icon.png",
   "versionName": "1.0.0",
   "versionCode": 1,

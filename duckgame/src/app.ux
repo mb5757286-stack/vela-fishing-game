@@ -1,0 +1,10 @@
+<script>
+export default {
+  onCreate() {
+    console.info('Утиная ферма: запуск')
+  },
+  onDestroy() {
+    console.info('Утиная ферма: выход')
+  }
+}
+</script>

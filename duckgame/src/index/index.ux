@@ -1,16 +1,30 @@
 <template>
-  <div class="page">
-    <stack class="stage">
+  <!-- Рамка под реальный экран часов: 432×514 (портрет) -->
+  <div class="frame">
+    <!-- Сцена повёрнута на 90° и имеет размеры 514×432 (альбомные) —
+         после поворота её bounding box точно совпадает с рамкой 432×514 -->
+    <stack class="land">
       <image class="bg" src="{{bgSrc}}"></image>
 
-      <!-- ===== Экран тренировки/забега/меню ===== -->
       <div class="scene" if="{{screen === 'home'}}">
         <div class="col" if="{{mode === 'menu'}}">
-          <text class="title">УТИНЫЕ ГОНКИ</text>
+          <text class="title">УТИНАЯ ФЕРМА</text>
           <image class="duck-img" src="{{duckSrc}}"></image>
-          <text class="stats">Скорость {{spd}}  Сила {{pow}}  Выносл. {{sta}}</text>
-          <text class="hint">Тап — тренировка или забег</text>
-          <text class="hint">Свайп/кнопки ‹ › — меню</text>
+          <text class="hungerline">Сытость: {{hungerPct}}%</text>
+          <text class="stats">Скорость {{spd}}  Сила {{pow}}  Вынослив. {{sta}}</text>
+          <text class="hint">Тап — покормить</text>
+          <text class="hint">Долгий тап — тренировка</text>
+        </div>
+
+        <div class="col" if="{{mode === 'feed'}}">
+          <text class="title">КОРМЛЕНИЕ</text>
+          <div class="feedbox">
+            <image class="falling" for="{{foodItems}}" src="{{$item.src}}"
+                   style="margin-left: {{$item.x}}px; margin-top: {{$item.y}}px;"></image>
+            <div class="basket" style="margin-left: {{basketPx}}px;"></div>
+          </div>
+          <text class="sub">Коронка — двигать корзину</text>
+          <text class="stat">{{feedResult}}</text>
         </div>
 
         <div class="col" if="{{mode === 'train'}}">
@@ -25,7 +39,7 @@
 
         <div class="col" if="{{mode === 'race'}}">
           <text class="title">{{raceTitle}}</text>
-          <div class="track-v" for="{{runners}}">
+          <div class="track-row" for="{{runners}}">
             <text class="runner-name">{{$item.name}}</text>
             <div class="lane">
               <div class="runner-dot" style="margin-left: {{$item.px}}px;"></div>
@@ -42,7 +56,6 @@
         </div>
       </div>
 
-      <!-- ===== Меню: магазин, трассы ===== -->
       <div class="menu" if="{{screen !== 'home'}}">
         <text class="menu-title">{{menuTitle}}</text>
         <text class="menu-sub">{{menuSub}}</text>
@@ -76,31 +89,37 @@
 </template>
 
 <style>
-  .page {
-    width: 100%;
-    height: 100%;
-    background-color: #0b3550;
+  .frame {
+    width: 432px;
+    height: 514px;
+    background-color: #000000;
   }
-  .stage {
-    width: 100%;
-    height: 100%;
+  /* Альбомная сцена: размеры поменяны местами (514×432), развёрнута на 90°
+     и сдвинута так, чтобы после поворота точно заполнить рамку 432×514 */
+  .land {
+    width: 514px;
+    height: 432px;
+    position: absolute;
+    left: -41px;
+    top: 41px;
+    transform: rotate(90deg);
   }
   .bg {
-    width: 100%;
-    height: 100%;
+    width: 514px;
+    height: 432px;
   }
   .scene, .menu {
-    width: 100%;
-    height: 100%;
+    width: 514px;
+    height: 432px;
     flex-direction: column;
     align-items: center;
   }
   .crown {
-    width: 100%;
-    height: 100%;
+    width: 514px;
+    height: 432px;
   }
   .crown-body {
-    width: 100%;
+    width: 514px;
     height: 6000px;
   }
 
@@ -108,118 +127,142 @@
     width: 100%;
     flex-direction: column;
     align-items: center;
-    margin-top: 40px;
+    margin-top: 18px;
   }
   .title {
-    font-size: 32px;
+    font-size: 28px;
     color: #ffffff;
-    margin-top: 8px;
     text-align: center;
   }
   .title-win {
-    font-size: 36px;
+    font-size: 32px;
     color: #2ecc71;
   }
   .title-lose {
-    font-size: 32px;
+    font-size: 28px;
     color: #e67e5a;
   }
   .duck-img {
-    width: 150px;
-    height: 125px;
-    margin-top: 10px;
+    width: 140px;
+    height: 117px;
+    margin-top: 6px;
+  }
+  .hungerline {
+    font-size: 18px;
+    color: #7fe3ff;
+    margin-top: 6px;
   }
   .stats {
-    font-size: 20px;
+    font-size: 18px;
     color: #ffd166;
-    margin-top: 10px;
+    margin-top: 6px;
     text-align: center;
   }
   .sub {
-    font-size: 22px;
+    font-size: 18px;
     color: #cfe8f7;
-    margin-top: 8px;
+    margin-top: 6px;
     text-align: center;
   }
   .stat {
-    font-size: 22px;
+    font-size: 18px;
     color: #ffd166;
-    margin-top: 10px;
+    margin-top: 8px;
     text-align: center;
   }
   .hint {
-    font-size: 18px;
+    font-size: 16px;
     color: #9fc6dd;
-    margin-top: 6px;
+    margin-top: 4px;
     text-align: center;
+  }
+
+  .feedbox {
+    width: 380px;
+    height: 180px;
+    margin-top: 10px;
+    border-radius: 14px;
+    background-color: rgba(8, 35, 56, 0.6);
+  }
+  .falling {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+  }
+  .basket {
+    position: absolute;
+    margin-top: 150px;
+    width: 60px;
+    height: 20px;
+    border-radius: 10px;
+    background-color: #c89660;
   }
 
   .meter-h {
     width: 320px;
-    height: 36px;
-    margin-top: 20px;
-    border-radius: 18px;
+    height: 32px;
+    margin-top: 16px;
+    border-radius: 16px;
     background-color: #082338;
   }
   .target {
     position: absolute;
-    height: 36px;
-    border-radius: 18px;
+    height: 32px;
+    border-radius: 16px;
     background-color: #2e9e68;
   }
   .needle {
     position: absolute;
     width: 6px;
-    height: 36px;
+    height: 32px;
     border-radius: 3px;
     background-color: #ffd166;
   }
 
-  .track-v {
-    width: 340px;
+  .track-row {
+    width: 400px;
     flex-direction: column;
-    margin-top: 6px;
+    margin-top: 4px;
   }
   .runner-name {
-    font-size: 15px;
+    font-size: 14px;
     color: #cfe8f7;
-    margin-top: 6px;
+    margin-top: 4px;
   }
   .lane {
-    width: 340px;
-    height: 16px;
-    border-radius: 8px;
+    width: 400px;
+    height: 14px;
+    border-radius: 7px;
     background-color: #082338;
   }
   .runner-dot {
-    width: 16px;
-    height: 16px;
-    border-radius: 8px;
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
     background-color: #ffd166;
   }
 
   .menu {
-    padding-top: 36px;
+    padding-top: 20px;
     background-color: rgba(4, 18, 30, 0.82);
   }
   .menu-title {
-    font-size: 28px;
+    font-size: 24px;
     color: #ffffff;
   }
   .menu-sub {
-    font-size: 18px;
+    font-size: 16px;
     color: #ffd166;
-    margin-top: 2px;
   }
   .list {
     width: 100%;
     flex-direction: column;
     align-items: center;
-    margin-top: 10px;
+    margin-top: 8px;
   }
   .row {
-    width: 340px;
-    height: 38px;
+    width: 380px;
+    height: 34px;
     margin-top: 4px;
     padding-left: 12px;
     border-radius: 10px;
@@ -230,13 +273,13 @@
     background-color: #2b8fc4;
   }
   .row-text {
-    font-size: 18px;
+    font-size: 16px;
     color: #ffffff;
   }
   .msg {
-    font-size: 18px;
+    font-size: 16px;
     color: #ffd166;
-    margin-top: 8px;
+    margin-top: 6px;
     text-align: center;
   }
 
@@ -244,8 +287,8 @@
     position: absolute;
     bottom: 0px;
     left: 0px;
-    width: 100%;
-    height: 56px;
+    width: 514px;
+    height: 48px;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
@@ -253,27 +296,27 @@
     padding-right: 30px;
   }
   .nav-btn {
-    width: 60px;
-    height: 46px;
-    border-radius: 23px;
+    width: 56px;
+    height: 40px;
+    border-radius: 20px;
     background-color: rgba(18, 58, 85, 0.9);
     justify-content: center;
     align-items: center;
   }
   .nav-txt {
-    font-size: 28px;
+    font-size: 24px;
     color: #ffffff;
   }
   .nav-name {
-    font-size: 16px;
+    font-size: 15px;
     color: #cfe8f7;
   }
   .mbtns {
     position: absolute;
-    bottom: 62px;
+    bottom: 54px;
     left: 0px;
-    width: 100%;
-    height: 44px;
+    width: 514px;
+    height: 38px;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
@@ -281,19 +324,19 @@
     padding-right: 30px;
   }
   .mbtn {
-    width: 70px;
-    height: 44px;
-    border-radius: 22px;
+    width: 62px;
+    height: 38px;
+    border-radius: 19px;
     background-color: rgba(18, 58, 85, 0.9);
     justify-content: center;
     align-items: center;
   }
   .mbtn-ok {
-    width: 150px;
+    width: 140px;
     background-color: #2b8fc4;
   }
   .mbtn-txt {
-    font-size: 16px;
+    font-size: 15px;
     color: #ffffff;
   }
 </style>
@@ -303,13 +346,14 @@ import vibrator from '@system.vibrator'
 import storage from '@system.storage'
 import game from '../common/game.js'
 
-const SAVE_KEY = 'duckrace_v1'
-const SCREENS = ['home', 'shop', 'items', 'tracks']
+const SAVE_KEY = 'duckgame_v1'
+const SCREENS = ['home', 'shop', 'items', 'locs']
 const MENU_STEP = 30
 const CENTER = 3000
 const RECENTER_AT = 1800
 const TICK_MS = 40
-const TRACK_PX = 300
+const TRACK_PX = 380
+const FEED_BOX_PX = 380
 
 function clamp(v, a, b) { return v < a ? a : (v > b ? b : v) }
 
@@ -320,7 +364,11 @@ export default {
     navName: 'ДОМ',
     bgSrc: '',
     duckSrc: '',
+    hungerPct: 100,
     spd: 1, pow: 1, sta: 1,
+    foodItems: [],
+    basketPx: 0,
+    feedResult: '',
     trainTitle: '',
     needlePx: 0,
     targetPx: 0,
@@ -346,7 +394,7 @@ export default {
     this.cursor = 0
     this.acc = 0
     this.msgTimer = null
-    this.pendingTrain = null  // какую характеристику качаем, выбирается перед тренировкой
+    this.longPressTimer = null
     this.loadSave()
   },
 
@@ -377,6 +425,8 @@ export default {
     if (d !== 0) {
       if (this.screen === 'home' && this.mode === 'train' && this.t) {
         game.trainCrown(this.t, d)
+      } else if (this.screen === 'home' && this.mode === 'feed' && this.f) {
+        game.feedCrown(this.f, d)
       } else if (this.screen !== 'home') {
         this.moveCursor(d)
       }
@@ -384,14 +434,16 @@ export default {
     if (Math.abs(y - CENTER) > RECENTER_AT) this.recenter()
   },
 
-  onLong() { /* резерв */ },
+  onLong() {
+    if (this.screen === 'home' && this.mode === 'menu') this.startTrainPicker()
+  },
   onTouch() { /* резерв */ },
 
   onTap() {
     if (this.screen !== 'home') { this.activate(); return }
-    if (this.mode === 'menu') { this.openTrainPicker(); return }
+    if (this.mode === 'menu') { this.startFeed(); return }
     if (this.mode === 'race' && this.r) { game.raceBoost(this.r); this.buzz('short') }
-    if (this.mode === 'result') { this.mode = 'menu'; this.renderMenus() }
+    if (this.mode === 'result') { this.mode = 'menu'; this.applyBg() }
   },
 
   cursorUp() { this.stepCursor(-1) },
@@ -414,7 +466,7 @@ export default {
   navPrev() { this.navTo(-1) },
   navNext() { this.navTo(1) },
   navTo(dir) {
-    if (this.screen === 'home' && (this.mode === 'train' || this.mode === 'race')) {
+    if (this.screen === 'home' && this.mode !== 'menu' && this.mode !== 'result') {
       this.msg = 'Сначала закончите'
       return
     }
@@ -424,7 +476,7 @@ export default {
 
   setScreen(s) {
     this.screen = s
-    const names = { home: 'ДОМ', shop: 'УТКИ', items: 'ВЕЩИ', tracks: 'ТРАССЫ' }
+    const names = { home: 'ДОМ', shop: 'УТКИ', items: 'ВЕЩИ', locs: 'ЛОКАЦИИ' }
     this.navName = names[s]
     this.cursor = 0
     this.acc = 0
@@ -433,20 +485,22 @@ export default {
     else this.renderMenus()
   },
 
-  // На «ДОМ» тап открывает выбор: тренировка (3 варианта) или забег. Упрощаем:
-  // тап по очереди предлагает тренировки, долгое — забег. Для простоты: тап = меню выбора через подряд идущие экраны нет,
-  // поэтому делаем так: на экране ДОМ тап запускает забег на текущей трассе,
-  // а тренировки идут через отдельные пункты меню ТРАССЫ -> нет, упрощаем в шоп.
-  openTrainPicker() {
-    // Короткое правило: тап по ДОМу — тренировка скорости/силы/выносливости по кругу,
-    // а старт забега — отдельная кнопка в меню ТРАССЫ.
+  // Тап на ДОМе — кормление. Долгий тап — тренировка (по кругу: скорость/сила/выносливость).
+  startFeed() {
+    this.mode = 'feed'
+    this.feedResult = ''
+    this.f = game.startFeeding(Math.random)
+  },
+
+  startTrainPicker() {
+    if (!game.canTrain(this.save)) {
+      this.msg = 'Утка голодна — сначала покормите'
+      this.flashMsg()
+      return
+    }
     const order = ['speed', 'power', 'stamina']
     const kind = order[(order.indexOf(this.lastTrainKind || 'stamina') + 1) % order.length]
     this.lastTrainKind = kind
-    this.startTrain(kind)
-  },
-
-  startTrain(kind) {
     const names = { speed: 'СКОРОСТЬ', power: 'СИЛА', stamina: 'ВЫНОСЛИВОСТЬ' }
     this.mode = 'train'
     this.trainTitle = 'Тренировка: ' + names[kind]
@@ -465,13 +519,13 @@ export default {
     this.flashMsg()
   },
 
-  startRaceOn(trackId) {
-    this.save.eq.track = trackId
+  startRaceOn(locId) {
+    this.save.eq.loc = locId
     this.persist()
     this.screen = 'home'
     this.mode = 'race'
-    const track = game.gear(this.save).track
-    this.raceTitle = track.name
+    const loc = game.gear(this.save).loc
+    this.raceTitle = loc.name
     this.r = game.startRace(Math.random, this.save)
     this.applyBg()
   },
@@ -486,10 +540,10 @@ export default {
   menuList() {
     if (this.screen === 'shop') return game.shopItems(this.save, 'duck')
     if (this.screen === 'items') return game.shopItems(this.save, 'item')
-    if (this.screen === 'tracks') {
-      return game.TRACKS.map(t => ({
+    if (this.screen === 'locs') {
+      return game.LOCATIONS.map(t => ({
         cat: 'race', id: t.id, name: t.name, price: t.price,
-        owned: this.save.owned.track.indexOf(t.id) >= 0
+        owned: this.save.owned.loc.indexOf(t.id) >= 0
       }))
     }
     return []
@@ -497,9 +551,9 @@ export default {
 
   renderMenus() {
     const coinsText = 'Монеты: ' + this.save.coins
-    if (this.screen === 'shop') { this.menuTitle = 'УТКИ'; this.menuHint = 'Коронка — выбор, тап/ВЫБРАТЬ — купить' }
+    if (this.screen === 'shop') { this.menuTitle = 'УТКИ'; this.menuHint = 'ВЫБРАТЬ — купить/выбрать' }
     else if (this.screen === 'items') { this.menuTitle = 'ВЕЩИ'; this.menuHint = 'Постоянный бонус к характеристике' }
-    else { this.menuTitle = 'ТРАССЫ'; this.menuHint = 'Тап — купить или бежать' }
+    else { this.menuTitle = 'ЛОКАЦИИ'; this.menuHint = 'ВЫБРАТЬ — купить или бежать' }
     this.menuSub = coinsText
 
     const list = this.menuList()
@@ -518,7 +572,7 @@ export default {
 
   applyBg() {
     const g = game.gear(this.save)
-    this.bgSrc = '/common/img/bg_' + g.track.id + '.png'
+    this.bgSrc = '/common/img/bg_' + g.loc.id + '.png'
     this.duckSrc = '/common/img/duck_' + g.duck.id + '.png'
   },
 
@@ -526,6 +580,7 @@ export default {
     this.spd = game.effectiveStat(this.save, 'speed')
     this.pow = game.effectiveStat(this.save, 'power')
     this.sta = game.effectiveStat(this.save, 'stamina')
+    this.hungerPct = Math.round(this.save.duck.hunger)
   },
 
   // ---------- игровой цикл ----------
@@ -539,6 +594,27 @@ export default {
   },
 
   loop() {
+    if (this.screen === 'home' && this.mode === 'feed' && this.f) {
+      game.feedStep(this.f, TICK_MS / 1000)
+      this.foodItems = this.f.items.map(it => ({
+        src: it.golden ? '/common/img/food_gold.png' : '/common/img/food.png',
+        x: Math.round(it.x / 100 * FEED_BOX_PX),
+        y: Math.round(it.y / 100 * 160)
+      }))
+      const bpx = Math.round(this.f.basket / 100 * FEED_BOX_PX)
+      if (this.basketPx !== bpx) this.basketPx = bpx
+      if (this.f.done) {
+        const res = game.applyFeeding(this.save, this.f)
+        this.feedResult = res.stat
+          ? ('Сытость +' + res.hunger + ', характеристика +' + res.stat.amount + '!')
+          : ('Сытость +' + res.hunger)
+        this.persist()
+        this.syncStats()
+        this.buzz(res.stat ? 'long' : 'short')
+        setTimeout(() => { this.mode = 'menu'; this.f = null }, 1200)
+      }
+    }
+
     if (this.screen === 'home' && this.mode === 'train' && this.t) {
       game.trainStep(this.t, TICK_MS / 1000)
       const needle = Math.round(this.t.needle / 100 * 320)
@@ -566,8 +642,9 @@ export default {
       if (this.r.finished) {
         this.rank = this.r.rank
         this.rankText = this.r.rank === 2 ? '2-е' : (this.r.rank === 3 ? '3-е' : (this.r.rank + '-е'))
-        this.coinsGain = game.finishRewards(this.save, this.r, this.save.eq.track)
+        this.coinsGain = game.finishRewards(this.save, this.r, this.save.eq.loc)
         this.persist()
+        this.syncStats()
         this.mode = 'result'
         this.buzz(this.rank === 1 ? 'long' : 'short')
         this.r = null
@@ -591,6 +668,8 @@ export default {
           try { this.save = game.mergeSave(JSON.parse(data)) }
           catch (err) { console.warn('save parse failed') }
         }
+        game.applyHungerDecay(this.save, Date.now())
+        this.persist()
         this.applyBg()
         this.syncStats()
       }
