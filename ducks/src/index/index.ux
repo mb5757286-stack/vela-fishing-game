@@ -1,0 +1,600 @@
+<template>
+  <div class="page">
+    <stack class="stage">
+      <image class="bg" src="{{bgSrc}}"></image>
+
+      <!-- ===== Экран тренировки/забега/меню ===== -->
+      <div class="scene" if="{{screen === 'home'}}">
+        <div class="col" if="{{mode === 'menu'}}">
+          <text class="title">УТИНЫЕ ГОНКИ</text>
+          <image class="duck-img" src="{{duckSrc}}"></image>
+          <text class="stats">Скорость {{spd}}  Сила {{pow}}  Выносл. {{sta}}</text>
+          <text class="hint">Тап — тренировка или забег</text>
+          <text class="hint">Свайп/кнопки ‹ › — меню</text>
+        </div>
+
+        <div class="col" if="{{mode === 'train'}}">
+          <text class="title">{{trainTitle}}</text>
+          <div class="meter-h">
+            <div class="target" style="margin-left: {{targetPx}}px; width: {{targetWpx}}px;"></div>
+            <div class="needle" style="margin-left: {{needlePx}}px;"></div>
+          </div>
+          <text class="sub">Коронка — держать в зоне</text>
+          <text class="stat">{{trainResult}}</text>
+        </div>
+
+        <div class="col" if="{{mode === 'race'}}">
+          <text class="title">{{raceTitle}}</text>
+          <div class="track-v" for="{{runners}}">
+            <text class="runner-name">{{$item.name}}</text>
+            <div class="lane">
+              <div class="runner-dot" style="margin-left: {{$item.px}}px;"></div>
+            </div>
+          </div>
+          <text class="hint">Тап — рывок</text>
+        </div>
+
+        <div class="col" if="{{mode === 'result'}}">
+          <text class="title-win" if="{{rank === 1}}">ПОБЕДА!</text>
+          <text class="title-lose" if="{{rank > 1}}">{{rankText}} место</text>
+          <text class="stat">+{{coinsGain}} монет</text>
+          <text class="hint">Тап — дальше</text>
+        </div>
+      </div>
+
+      <!-- ===== Меню: магазин, трассы ===== -->
+      <div class="menu" if="{{screen !== 'home'}}">
+        <text class="menu-title">{{menuTitle}}</text>
+        <text class="menu-sub">{{menuSub}}</text>
+        <div class="list">
+          <div for="{{rows}}" class="{{$item.cls}}">
+            <text class="row-text">{{$item.text}}</text>
+          </div>
+        </div>
+        <text class="msg">{{msg}}</text>
+        <text class="hint">{{menuHint}}</text>
+      </div>
+
+      <scroll id="crown" class="crown" scroll-y="true"
+              onscroll="onCrown" onlongpress="onLong">
+        <div class="crown-body" onclick="onTap" ontouchstart="onTouch"></div>
+      </scroll>
+
+      <div class="mbtns" if="{{screen !== 'home'}}">
+        <div class="mbtn" onclick="cursorUp"><text class="nav-txt">▲</text></div>
+        <div class="mbtn mbtn-ok" onclick="onTap"><text class="mbtn-txt">ВЫБРАТЬ</text></div>
+        <div class="mbtn" onclick="cursorDown"><text class="nav-txt">▼</text></div>
+      </div>
+
+      <div class="nav">
+        <div class="nav-btn" onclick="navPrev"><text class="nav-txt">‹</text></div>
+        <text class="nav-name">{{navName}}</text>
+        <div class="nav-btn" onclick="navNext"><text class="nav-txt">›</text></div>
+      </div>
+    </stack>
+  </div>
+</template>
+
+<style>
+  .page {
+    width: 100%;
+    height: 100%;
+    background-color: #0b3550;
+  }
+  .stage {
+    width: 100%;
+    height: 100%;
+  }
+  .bg {
+    width: 100%;
+    height: 100%;
+  }
+  .scene, .menu {
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+  }
+  .crown {
+    width: 100%;
+    height: 100%;
+  }
+  .crown-body {
+    width: 100%;
+    height: 6000px;
+  }
+
+  .col {
+    width: 100%;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 40px;
+  }
+  .title {
+    font-size: 32px;
+    color: #ffffff;
+    margin-top: 8px;
+    text-align: center;
+  }
+  .title-win {
+    font-size: 36px;
+    color: #2ecc71;
+  }
+  .title-lose {
+    font-size: 32px;
+    color: #e67e5a;
+  }
+  .duck-img {
+    width: 150px;
+    height: 125px;
+    margin-top: 10px;
+  }
+  .stats {
+    font-size: 20px;
+    color: #ffd166;
+    margin-top: 10px;
+    text-align: center;
+  }
+  .sub {
+    font-size: 22px;
+    color: #cfe8f7;
+    margin-top: 8px;
+    text-align: center;
+  }
+  .stat {
+    font-size: 22px;
+    color: #ffd166;
+    margin-top: 10px;
+    text-align: center;
+  }
+  .hint {
+    font-size: 18px;
+    color: #9fc6dd;
+    margin-top: 6px;
+    text-align: center;
+  }
+
+  .meter-h {
+    width: 320px;
+    height: 36px;
+    margin-top: 20px;
+    border-radius: 18px;
+    background-color: #082338;
+  }
+  .target {
+    position: absolute;
+    height: 36px;
+    border-radius: 18px;
+    background-color: #2e9e68;
+  }
+  .needle {
+    position: absolute;
+    width: 6px;
+    height: 36px;
+    border-radius: 3px;
+    background-color: #ffd166;
+  }
+
+  .track-v {
+    width: 340px;
+    flex-direction: column;
+    margin-top: 6px;
+  }
+  .runner-name {
+    font-size: 15px;
+    color: #cfe8f7;
+    margin-top: 6px;
+  }
+  .lane {
+    width: 340px;
+    height: 16px;
+    border-radius: 8px;
+    background-color: #082338;
+  }
+  .runner-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    background-color: #ffd166;
+  }
+
+  .menu {
+    padding-top: 36px;
+    background-color: rgba(4, 18, 30, 0.82);
+  }
+  .menu-title {
+    font-size: 28px;
+    color: #ffffff;
+  }
+  .menu-sub {
+    font-size: 18px;
+    color: #ffd166;
+    margin-top: 2px;
+  }
+  .list {
+    width: 100%;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 10px;
+  }
+  .row {
+    width: 340px;
+    height: 38px;
+    margin-top: 4px;
+    padding-left: 12px;
+    border-radius: 10px;
+    background-color: #123a55;
+    justify-content: center;
+  }
+  .row-sel {
+    background-color: #2b8fc4;
+  }
+  .row-text {
+    font-size: 18px;
+    color: #ffffff;
+  }
+  .msg {
+    font-size: 18px;
+    color: #ffd166;
+    margin-top: 8px;
+    text-align: center;
+  }
+
+  .nav {
+    position: absolute;
+    bottom: 0px;
+    left: 0px;
+    width: 100%;
+    height: 56px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding-left: 30px;
+    padding-right: 30px;
+  }
+  .nav-btn {
+    width: 60px;
+    height: 46px;
+    border-radius: 23px;
+    background-color: rgba(18, 58, 85, 0.9);
+    justify-content: center;
+    align-items: center;
+  }
+  .nav-txt {
+    font-size: 28px;
+    color: #ffffff;
+  }
+  .nav-name {
+    font-size: 16px;
+    color: #cfe8f7;
+  }
+  .mbtns {
+    position: absolute;
+    bottom: 62px;
+    left: 0px;
+    width: 100%;
+    height: 44px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding-left: 30px;
+    padding-right: 30px;
+  }
+  .mbtn {
+    width: 70px;
+    height: 44px;
+    border-radius: 22px;
+    background-color: rgba(18, 58, 85, 0.9);
+    justify-content: center;
+    align-items: center;
+  }
+  .mbtn-ok {
+    width: 150px;
+    background-color: #2b8fc4;
+  }
+  .mbtn-txt {
+    font-size: 16px;
+    color: #ffffff;
+  }
+</style>
+
+<script>
+import vibrator from '@system.vibrator'
+import storage from '@system.storage'
+import game from '../common/game.js'
+
+const SAVE_KEY = 'duckrace_v1'
+const SCREENS = ['home', 'shop', 'items', 'tracks']
+const MENU_STEP = 30
+const CENTER = 3000
+const RECENTER_AT = 1800
+const TICK_MS = 40
+const TRACK_PX = 300
+
+function clamp(v, a, b) { return v < a ? a : (v > b ? b : v) }
+
+export default {
+  private: {
+    screen: 'home',
+    mode: 'menu',
+    navName: 'ДОМ',
+    bgSrc: '',
+    duckSrc: '',
+    spd: 1, pow: 1, sta: 1,
+    trainTitle: '',
+    needlePx: 0,
+    targetPx: 0,
+    targetWpx: 0,
+    trainResult: '',
+    raceTitle: '',
+    runners: [],
+    rank: 0,
+    rankText: '',
+    coinsGain: 0,
+    rows: [],
+    msg: '',
+    menuTitle: '',
+    menuSub: '',
+    menuHint: ''
+  },
+
+  onInit() {
+    this.save = game.defaultSave()
+    this.timer = null
+    this.lastY = CENTER
+    this.recentering = false
+    this.cursor = 0
+    this.acc = 0
+    this.msgTimer = null
+    this.pendingTrain = null  // какую характеристику качаем, выбирается перед тренировкой
+    this.loadSave()
+  },
+
+  onShow() {
+    this.recenter()
+    if (this.timer === null) this.timer = setInterval(() => this.loop(), TICK_MS)
+  },
+
+  onHide() { this.stopLoop() },
+  onDestroy() { this.stopLoop() },
+
+  stopLoop() {
+    if (this.timer !== null) { clearInterval(this.timer); this.timer = null }
+  },
+
+  buzz(mode) {
+    try { vibrator.vibrate({ mode: mode }) } catch (err) { /* без вибрации */ }
+  },
+
+  // ---------- ввод ----------
+
+  onCrown(e) {
+    let y = e && typeof e.scrollY === 'number' ? e.scrollY : (e && e.scrollTop)
+    if (typeof y !== 'number' || isNaN(y)) return
+    if (this.recentering) { this.recentering = false; this.lastY = y; return }
+    const d = y - this.lastY
+    this.lastY = y
+    if (d !== 0) {
+      if (this.screen === 'home' && this.mode === 'train' && this.t) {
+        game.trainCrown(this.t, d)
+      } else if (this.screen !== 'home') {
+        this.moveCursor(d)
+      }
+    }
+    if (Math.abs(y - CENTER) > RECENTER_AT) this.recenter()
+  },
+
+  onLong() { /* резерв */ },
+  onTouch() { /* резерв */ },
+
+  onTap() {
+    if (this.screen !== 'home') { this.activate(); return }
+    if (this.mode === 'menu') { this.openTrainPicker(); return }
+    if (this.mode === 'race' && this.r) { game.raceBoost(this.r); this.buzz('short') }
+    if (this.mode === 'result') { this.mode = 'menu'; this.renderMenus() }
+  },
+
+  cursorUp() { this.stepCursor(-1) },
+  cursorDown() { this.stepCursor(1) },
+  stepCursor(n) {
+    const len = this.menuList().length
+    this.cursor = clamp(this.cursor + n, 0, Math.max(0, len - 1))
+    this.renderMenus()
+  },
+  moveCursor(d) {
+    if (!isFinite(d)) return
+    this.acc += d
+    const steps = Math.trunc(this.acc / MENU_STEP)
+    if (steps === 0) return
+    this.acc -= steps * MENU_STEP
+    this.cursor = clamp(this.cursor + steps, 0, this.menuList().length - 1)
+    this.renderMenus()
+  },
+
+  navPrev() { this.navTo(-1) },
+  navNext() { this.navTo(1) },
+  navTo(dir) {
+    if (this.screen === 'home' && (this.mode === 'train' || this.mode === 'race')) {
+      this.msg = 'Сначала закончите'
+      return
+    }
+    const i = SCREENS.indexOf(this.screen)
+    this.setScreen(SCREENS[(i + dir + SCREENS.length) % SCREENS.length])
+  },
+
+  setScreen(s) {
+    this.screen = s
+    const names = { home: 'ДОМ', shop: 'УТКИ', items: 'ВЕЩИ', tracks: 'ТРАССЫ' }
+    this.navName = names[s]
+    this.cursor = 0
+    this.acc = 0
+    this.msg = ''
+    if (s === 'home') { this.mode = 'menu'; this.applyBg(); this.syncStats() }
+    else this.renderMenus()
+  },
+
+  // На «ДОМ» тап открывает выбор: тренировка (3 варианта) или забег. Упрощаем:
+  // тап по очереди предлагает тренировки, долгое — забег. Для простоты: тап = меню выбора через подряд идущие экраны нет,
+  // поэтому делаем так: на экране ДОМ тап запускает забег на текущей трассе,
+  // а тренировки идут через отдельные пункты меню ТРАССЫ -> нет, упрощаем в шоп.
+  openTrainPicker() {
+    // Короткое правило: тап по ДОМу — тренировка скорости/силы/выносливости по кругу,
+    // а старт забега — отдельная кнопка в меню ТРАССЫ.
+    const order = ['speed', 'power', 'stamina']
+    const kind = order[(order.indexOf(this.lastTrainKind || 'stamina') + 1) % order.length]
+    this.lastTrainKind = kind
+    this.startTrain(kind)
+  },
+
+  startTrain(kind) {
+    const names = { speed: 'СКОРОСТЬ', power: 'СИЛА', stamina: 'ВЫНОСЛИВОСТЬ' }
+    this.mode = 'train'
+    this.trainTitle = 'Тренировка: ' + names[kind]
+    this.trainResult = ''
+    this.t = game.startTraining(Math.random, kind)
+  },
+
+  activate() {
+    const list = this.menuList()
+    const it = list[this.cursor]
+    if (!it) return
+    if (it.cat === 'race') { this.startRaceOn(it.id); return }
+    this.msg = game.buy(this.save, it.cat, it.id)
+    this.persist()
+    this.renderMenus()
+    this.flashMsg()
+  },
+
+  startRaceOn(trackId) {
+    this.save.eq.track = trackId
+    this.persist()
+    this.screen = 'home'
+    this.mode = 'race'
+    const track = game.gear(this.save).track
+    this.raceTitle = track.name
+    this.r = game.startRace(Math.random, this.save)
+    this.applyBg()
+  },
+
+  flashMsg() {
+    if (this.msgTimer) clearTimeout(this.msgTimer)
+    this.msgTimer = setTimeout(() => { this.msg = '' }, 2200)
+  },
+
+  // ---------- меню ----------
+
+  menuList() {
+    if (this.screen === 'shop') return game.shopItems(this.save, 'duck')
+    if (this.screen === 'items') return game.shopItems(this.save, 'item')
+    if (this.screen === 'tracks') {
+      return game.TRACKS.map(t => ({
+        cat: 'race', id: t.id, name: t.name, price: t.price,
+        owned: this.save.owned.track.indexOf(t.id) >= 0
+      }))
+    }
+    return []
+  },
+
+  renderMenus() {
+    const coinsText = 'Монеты: ' + this.save.coins
+    if (this.screen === 'shop') { this.menuTitle = 'УТКИ'; this.menuHint = 'Коронка — выбор, тап/ВЫБРАТЬ — купить' }
+    else if (this.screen === 'items') { this.menuTitle = 'ВЕЩИ'; this.menuHint = 'Постоянный бонус к характеристике' }
+    else { this.menuTitle = 'ТРАССЫ'; this.menuHint = 'Тап — купить или бежать' }
+    this.menuSub = coinsText
+
+    const list = this.menuList()
+    const start = clamp(this.cursor - 1, 0, Math.max(0, list.length - 4))
+    const rows = []
+    for (let i = start; i < list.length && rows.length < 4; i++) {
+      const it = list[i]
+      const mark = it.owned ? (it.equipped ? '● ' : (it.cat === 'race' ? '✓ ' : '○ ')) : ''
+      let tail
+      if (it.cat === 'race') tail = it.owned ? 'бежать' : it.price + ' монет'
+      else tail = it.owned ? (it.equipped ? 'надето' : 'есть') : it.price + ' монет'
+      rows.push({ text: mark + it.name + ' — ' + tail, cls: 'row' + (i === this.cursor ? ' row-sel' : '') })
+    }
+    this.rows = rows
+  },
+
+  applyBg() {
+    const g = game.gear(this.save)
+    this.bgSrc = '/common/img/bg_' + g.track.id + '.png'
+    this.duckSrc = '/common/img/duck_' + g.duck.id + '.png'
+  },
+
+  syncStats() {
+    this.spd = game.effectiveStat(this.save, 'speed')
+    this.pow = game.effectiveStat(this.save, 'power')
+    this.sta = game.effectiveStat(this.save, 'stamina')
+  },
+
+  // ---------- игровой цикл ----------
+
+  recenter() {
+    const el = this.$element('crown')
+    if (!el) return
+    this.recentering = true
+    this.lastY = CENTER
+    el.scrollTo({ top: CENTER, left: 0, behavior: 'instant' })
+  },
+
+  loop() {
+    if (this.screen === 'home' && this.mode === 'train' && this.t) {
+      game.trainStep(this.t, TICK_MS / 1000)
+      const needle = Math.round(this.t.needle / 100 * 320)
+      if (this.needlePx !== needle) this.needlePx = needle
+      const tpx = Math.round((this.t.target - this.t.targetW / 2) / 100 * 320)
+      if (this.targetPx !== tpx) this.targetPx = tpx
+      const tw = Math.round(this.t.targetW / 100 * 320)
+      if (this.targetWpx !== tw) this.targetWpx = tw
+      if (this.t.done) {
+        const gained = game.applyTraining(this.save, this.t)
+        this.trainResult = gained > 0 ? ('+' + gained + ' к характеристике!') : 'Мимо. Попробуйте ещё раз'
+        this.persist()
+        this.syncStats()
+        this.buzz(gained > 0 ? 'long' : 'short')
+        setTimeout(() => { this.mode = 'menu'; this.t = null }, 1200)
+      }
+    }
+
+    if (this.screen === 'home' && this.mode === 'race' && this.r) {
+      game.raceStep(this.r, TICK_MS / 1000)
+      this.runners = this.r.runners.map(run => ({
+        name: run.name,
+        px: Math.round(clamp(run.pos / this.r.length, 0, 1) * TRACK_PX)
+      }))
+      if (this.r.finished) {
+        this.rank = this.r.rank
+        this.rankText = this.r.rank === 2 ? '2-е' : (this.r.rank === 3 ? '3-е' : (this.r.rank + '-е'))
+        this.coinsGain = game.finishRewards(this.save, this.r, this.save.eq.track)
+        this.persist()
+        this.mode = 'result'
+        this.buzz(this.rank === 1 ? 'long' : 'short')
+        this.r = null
+      }
+    }
+  },
+
+  // ---------- сохранение ----------
+
+  persist() {
+    try { storage.set({ key: SAVE_KEY, value: JSON.stringify(this.save) }) }
+    catch (err) { console.warn('save failed') }
+  },
+
+  loadSave() {
+    storage.get({
+      key: SAVE_KEY,
+      default: '',
+      success: (data) => {
+        if (data) {
+          try { this.save = game.mergeSave(JSON.parse(data)) }
+          catch (err) { console.warn('save parse failed') }
+        }
+        this.applyBg()
+        this.syncStats()
+      }
+    })
+  }
+}
+</script>

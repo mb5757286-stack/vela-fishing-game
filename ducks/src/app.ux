@@ -1,0 +1,10 @@
+<script>
+export default {
+  onCreate() {
+    console.info('Утиные гонки: запуск')
+  },
+  onDestroy() {
+    console.info('Утиные гонки: выход')
+  }
+}
+</script>
